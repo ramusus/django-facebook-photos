@@ -19,7 +19,7 @@ from facebook_pages.models import Page as Group
 
 log = logging.getLogger('facebook_photos')
 
-ALBUM_PRIVACY_CHOCIES = (
+ALBUM_TYPE_CHOCIES = (
     (0, u'Все пользователи'),
     (1, u'Только друзья'),
     (2, u'Друзья и друзья друзей'),
@@ -34,27 +34,27 @@ class AlbumRemoteManager(FacebookGraphManager):
         if not user and not group:
             raise ValueError("You must specify user or page, which albums you want to fetch")
 
-        kwargs = {
-            #need_covers
-            #1 - будет возвращено дополнительное поле thumb_src. По умолчанию поле thumb_src не возвращается.
-            'need_covers': int(need_covers)
-        }
-        #uid
-        #ID пользователя, которому принадлежат альбомы. По умолчанию – ID текущего пользователя.
-        if user:
-            kwargs.update({'uid': user.remote_id})
-        #gid
-        #ID группы, которой принадлежат альбомы.
-        if group:
-            kwargs.update({'gid': group.remote_id})
-        #aids
-        #перечисленные через запятую ID альбомов.
-        if ids:
-            kwargs.update({'aids': ','.join(map(str, ids))})
-
-        # special parameters
-        kwargs['after'] = after
-        kwargs['before'] = before
+#        kwargs = {
+#            #need_covers
+#            #1 - будет возвращено дополнительное поле thumb_src. По умолчанию поле thumb_src не возвращается.
+#            'need_covers': int(need_covers)
+#        }
+#        #uid
+#        #ID пользователя, которому принадлежат альбомы. По умолчанию – ID текущего пользователя.
+#        if user:
+#            kwargs.update({'uid': user.remote_id})
+#        #gid
+#        #ID группы, которой принадлежат альбомы.
+#        if group:
+#            kwargs.update({'gid': group.remote_id})
+#        #aids
+#        #перечисленные через запятую ID альбомов.
+#        if ids:
+#            kwargs.update({'aids': ','.join(map(str, ids))})
+#
+#        # special parameters
+#        kwargs['after'] = after
+#        kwargs['before'] = before
 
         return super(AlbumRemoteManager, self).fetch(**kwargs)
 
@@ -221,21 +221,25 @@ class Album(PhotosAbstractModel):
     remote_pk_field = 'aid'
     slug_prefix = 'album'
 
+    can_upload = models.BooleanField()
+    count = models.PositiveIntegerField(u'Кол-во фотографий')
+    cover_photo = models.CharField(max_length='200')
+    link = models.URLField()
+    location = models.CharField(max_length='200')
+    place  = models.CharField(max_length='200') # page
+    privacy  = models.CharField(max_length='200')
+    type  = models.CharField(max_length='200')
+
     # TODO: migrate to ContentType framework, remove vkontakte_users and vkontakte_groups dependencies
-    owner = models.ForeignKey(User, verbose_name=u'Владелец альбома', null=True, related_name='photo_albums')
-    group = models.ForeignKey(Group, verbose_name=u'Группа альбома', null=True, related_name='photo_albums')
+    #owner = models.ForeignKey(User, verbose_name=u'Владелец альбома', null=True, related_name='photo_albums')
+    #group = models.ForeignKey(Group, verbose_name=u'Группа альбома', null=True, related_name='photo_albums')
 
-    thumb_id = models.PositiveIntegerField()
-    thumb_src = models.CharField(u'Обложка альбома', max_length='200')
-
-    title = models.CharField(max_length='200')
+    name = models.CharField(max_length='200')
     description = models.TextField()
 
-    created = models.DateTimeField(null=True, db_index=True)
-    updated = models.DateTimeField(null=True, db_index=True)
+    created_time = models.DateTimeField(null=True, db_index=True)
+    updated_time = models.DateTimeField(null=True, db_index=True)
 
-    size = models.PositiveIntegerField(u'Кол-во фотографий')
-    privacy = models.PositiveIntegerField(u'Уровень доступа к альбому', null=True, choices=ALBUM_PRIVACY_CHOCIES)
 
     objects = models.Manager()
     remote = AlbumRemoteManager()
