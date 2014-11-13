@@ -3,17 +3,21 @@ from django.db import models, transaction
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 from django.utils import timezone
-from vkontakte_api.utils import api_call
-from vkontakte_api import fields
-from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel
-from vkontakte_api.decorators import fetch_all
-from vkontakte_users.models import User
-from vkontakte_groups.models import Group
-from parser import VkontaktePhotosParser
+#from vkontakte_api.utils import api_call
+#from vkontakte_api import fields
+#from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel
+#rom vkontakte_api.decorators import fetch_all
+#from vkontakte_users.models import User
+#from vkontakte_groups.models import Group
+#from parser import VkontaktePhotosParser
 import logging
 import re
 
-log = logging.getLogger('vkontakte_photos')
+from facebook_api.models import FacebookGraphModel, FacebookGraphIDModel, FacebookGraphManager
+from facebook_users.models import User
+from facebook_pages.models import Page as Group
+
+log = logging.getLogger('facebook_photos')
 
 ALBUM_PRIVACY_CHOCIES = (
     (0, u'Все пользователи'),
@@ -23,23 +27,12 @@ ALBUM_PRIVACY_CHOCIES = (
 )
 
 
-class AlbumRemoteManager(VkontakteTimelineManager):
-
-    timeline_force_ordering = True
-
-    def get_timeline_date(self, instance):
-        return instance.updated or instance.created or timezone.now()
+class AlbumRemoteManager(FacebookGraphManager):
 
     @transaction.commit_on_success
-    def fetch(self, user=None, group=None, ids=None, need_covers=False, before=None, after=None, **kwargs):
+    def fetch(self, user=None, page=None, ids=None, need_covers=False, before=None, after=None, **kwargs):
         if not user and not group:
-            raise ValueError("You must specify user of group, which albums you want to fetch")
-        if ids and not isinstance(ids, (tuple, list)):
-            raise ValueError("Attribute 'ids' should be tuple or list")
-        if before and not after:
-            raise ValueError("Attribute `before` should be specified with attribute `after`")
-        if before and before < after:
-            raise ValueError("Attribute `before` should be later, than attribute `after`")
+            raise ValueError("You must specify user or page, which albums you want to fetch")
 
         kwargs = {
             #need_covers
@@ -66,7 +59,7 @@ class AlbumRemoteManager(VkontakteTimelineManager):
         return super(AlbumRemoteManager, self).fetch(**kwargs)
 
 
-class PhotoRemoteManager(VkontakteTimelineManager):
+class PhotoRemoteManager(FacebookGraphManager):
 
     timeline_cut_fieldname = 'created'
     timeline_force_ordering = True
@@ -115,15 +108,15 @@ class PhotoRemoteManager(VkontakteTimelineManager):
         return super(PhotoRemoteManager, self).fetch(**kwargs)
 
 
-class CommentRemoteManager(VkontakteTimelineManager):
+class CommentRemoteManager(FacebookGraphManager):
 
     @transaction.commit_on_success
-    @fetch_all(default_count=100)
+    #@fetch_all(default_count=100)
     def fetch_album(self, album, offset=0, count=100, sort='asc', need_likes=True, before=None, after=None, **kwargs):
         raise NotImplementedError
 
     @transaction.commit_on_success
-    @fetch_all(default_count=100)
+    #@fetch_all(default_count=100)
     def fetch_photo(self, photo, offset=0, count=100, sort='asc', need_likes=True, before=None, after=None, **kwargs):
         if count > 100:
             raise ValueError("Attribute 'count' can not be more than 100")
@@ -179,7 +172,7 @@ class CommentRemoteManager(VkontakteTimelineManager):
 #                 raise e
 
 
-class PhotosAbstractModel(VkontakteModel):
+class PhotosAbstractModel(FacebookGraphModel):
     class Meta:
         abstract = True
 
@@ -222,8 +215,8 @@ class PhotosAbstractModel(VkontakteModel):
 
 class Album(PhotosAbstractModel):
     class Meta:
-        verbose_name = u'Альбом фотографий Вконтакте'
-        verbose_name_plural = u'Альбомы фотографий Вконтакте'
+        verbose_name = u'Альбом фотографий Facebook'
+        verbose_name_plural = u'Альбомы фотографий Facebook'
 
     remote_pk_field = 'aid'
     slug_prefix = 'album'
@@ -245,10 +238,11 @@ class Album(PhotosAbstractModel):
     privacy = models.PositiveIntegerField(u'Уровень доступа к альбому', null=True, choices=ALBUM_PRIVACY_CHOCIES)
 
     objects = models.Manager()
-    remote = AlbumRemoteManager(remote_pk=('remote_id',), methods={
-        'get': 'getAlbums',
-#        'edit': 'editAlbum',
-    })
+    remote = AlbumRemoteManager()
+#    remote = AlbumRemoteManager(remote_pk=('remote_id',), methods={
+#        'get': 'getAlbums',
+##        'edit': 'editAlbum',
+#    })
 
     def __unicode__(self):
         return self.title
@@ -260,8 +254,8 @@ class Album(PhotosAbstractModel):
 
 class Photo(PhotosAbstractModel):
     class Meta:
-        verbose_name = u'Фотография Вконтакте'
-        verbose_name_plural = u'Фотографии Вконтакте'
+        verbose_name = u'Фотография Facebook'
+        verbose_name_plural = u'Фотографии Facebook'
 
     remote_pk_field = 'pid'
     slug_prefix = 'photo'
@@ -295,9 +289,10 @@ class Photo(PhotosAbstractModel):
     created = models.DateTimeField(db_index=True)
 
     objects = models.Manager()
-    remote = PhotoRemoteManager(remote_pk=('remote_id',), methods={
-        'get': 'get',
-    })
+    remote = PhotoRemoteManager()
+#    remote = PhotoRemoteManager(remote_pk=('remote_id',), methods={
+#        'get': 'get',
+#    })
 
     def parse(self, response):
         super(Photo, self).parse(response)
@@ -328,7 +323,7 @@ class Photo(PhotosAbstractModel):
             'offset': 0,
             'photo': self.remote_id,
         }
-        parser = VkontaktePhotosParser().request('/al_photos.php', data=post_data)
+        #parser = VkontaktePhotosParser().request('/al_photos.php', data=post_data)
 
         self.comments_count = len(parser.content_bs.findAll('div', {'class': 'clear_fix pv_comment '}))
         self.save()
@@ -344,7 +339,7 @@ class Photo(PhotosAbstractModel):
             'list': 'album%s' % self.album.remote_id,
             'object': 'photo%s' % self.remote_id,
         }
-        parser = VkontaktePhotosParser().request('/like.php', data=post_data)
+        #parser = VkontaktePhotosParser().request('/like.php', data=post_data)
 
         values = re.findall(r'value="(\d+)"', parser.html)
         if len(values):
@@ -376,7 +371,7 @@ class Photo(PhotosAbstractModel):
         return Comment.remote.fetch_photo(photo=self, *args, **kwargs)
 
 
-class Comment(VkontakteModel, VkontakteCRUDModel):
+class Comment(FacebookGraphIDModel):
     class Meta:
         verbose_name = u'Коммментарий фотографии Вконтакте'
         verbose_name_plural = u'Коммментарии фотографий Вконтакте'
@@ -402,13 +397,14 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
 #    likes = models.PositiveIntegerField(u'Кол-во лайков', default=0)
 
     objects = models.Manager()
-    remote = CommentRemoteManager(remote_pk=('remote_id',), methods={
-        'get': 'getComments',
-        'create': 'createComment',
-        'update': 'editComment',
-        'delete': 'deleteComment',
-        'restore': 'restoreComment',
-    })
+    remote = CommentRemoteManager()
+#    remote = CommentRemoteManager(remote_pk=('remote_id',), methods={
+#        'get': 'getComments',
+#        'create': 'createComment',
+#        'update': 'editComment',
+#        'delete': 'deleteComment',
+#        'restore': 'restoreComment',
+#    })
 
     @property
     def remote_owner_id(self):
@@ -482,4 +478,4 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
         if '_' not in str(self.remote_id):
             self.remote_id = '%s_%s' % (self.remote_owner_id, self.remote_id)
 
-import signals
+#import signals
