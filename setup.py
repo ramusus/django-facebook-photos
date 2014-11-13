@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='django-facebook-photos',
-    version=__import__('vkontakte_facebook').__version__,
+    version=__import__('facebook_photos').__version__,
     description='Django implementation for Facebook Graph API Photos and Albums',
     long_description=open('README.md').read(),
     author='ramusus',
@@ -15,7 +15,7 @@ setup(
     zip_safe=False, # because we're including media that Django needs
     install_requires=[
         'django-facebook-api>=0.1.4',
-        'django-facebook-users>=0.1.1',
+        'django-facebook-users>=0.1.0',
         'django-facebook-pages>=0.1.9',
     ],
     classifiers=[
