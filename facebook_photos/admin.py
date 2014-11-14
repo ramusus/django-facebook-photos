@@ -18,14 +18,9 @@ class PhotoInline(admin.TabularInline):
 
 class AlbumAdmin(admin.ModelAdmin):
 
-    def image_preview(self, obj):
-        return u'<a href="%s"><img src="%s" height="30" /></a>' % (obj.thumb_src, obj.thumb_src)
-    image_preview.short_description = u'Картинка'
-    image_preview.allow_tags = True
-
-    list_display = ('image_preview','title','size','created','updated')
-    list_display_links = ('title',)
-    search_fields = ('title','description')
+    list_display = ('name','count', 'owner', 'place', 'privacy', 'type', 'created_time','updated_time')
+    list_display_links = ('name',)
+    search_fields = ('name','description')
     inlines = [PhotoInline]
 
 class PhotoAdmin(admin.ModelAdmin):

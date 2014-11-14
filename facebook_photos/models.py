@@ -14,6 +14,7 @@ import logging
 import re
 
 from facebook_api.models import FacebookGraphModel, FacebookGraphIDModel, FacebookGraphManager
+from facebook_api.utils import graph
 from facebook_users.models import User
 from facebook_pages.models import Page as Group
 
@@ -30,8 +31,8 @@ ALBUM_TYPE_CHOCIES = (
 class AlbumRemoteManager(FacebookGraphManager):
 
     @transaction.commit_on_success
-    def fetch(self, user=None, page=None, ids=None, need_covers=False, before=None, after=None, **kwargs):
-        if not user and not group:
+    def fetch(self, graph_id=None, user=None, page=None, ids=None, need_covers=False, before=None, after=None, **kwargs):
+        if not (graph_id or user or page):
             raise ValueError("You must specify user or page, which albums you want to fetch")
 
 #        kwargs = {
@@ -55,8 +56,20 @@ class AlbumRemoteManager(FacebookGraphManager):
 #        # special parameters
 #        kwargs['after'] = after
 #        kwargs['before'] = before
+        if graph_id:
+            return super(AlbumRemoteManager, self).fetch(graph_id)
+        elif page:
+            ids = []
+            #q = "%s/albums/" % page
+            response = graph("%s/albums/" % page, **kwargs)
+            #log.debug('response objects count - %s' % len(response.data))
 
-        return super(AlbumRemoteManager, self).fetch(**kwargs)
+            for resource in response.data:
+                instance = self.get_or_create_from_resource(resource)
+                ids += [instance.pk]
+
+            return Album.objects.filter(pk__in=ids), response
+
 
 
 class PhotoRemoteManager(FacebookGraphManager):
@@ -172,57 +185,53 @@ class CommentRemoteManager(FacebookGraphManager):
 #                 raise e
 
 
-class PhotosAbstractModel(FacebookGraphModel):
-    class Meta:
-        abstract = True
+#class PhotosAbstractModel(FacebookGraphModel):
+#    class Meta:
+#        abstract = True
+#
+#    methods_namespace = 'photos'
+#
+#    remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
+#
+#    @property
+#    def remote_id_short(self):
+#        return self.remote_id.split('_')[1]
+#
+#    @property
+#    def slug(self):
+#        return self.slug_prefix + str(self.remote_id)
+#
+#    def get_remote_id(self, id):
+#        '''
+#        Returns unique remote_id, contains from 2 parts: remote_id of owner or group and remote_id of photo object
+#        TODO: перейти на ContentType и избавиться от метода
+#        '''
+#        if self.owner:
+#            remote_id = self.owner.remote_id
+#        elif self.group:
+#            remote_id = -1 * self.group.remote_id
+#
+#        return '%s_%s' % (remote_id, id)
+#
+#    def parse(self, response):
+#        # TODO: перейти на ContentType и избавиться от метода
+#        owner_id = int(response.pop('owner_id'))
+#        if owner_id > 0:
+#            self.owner = User.objects.get_or_create(remote_id=owner_id)[0]
+#        else:
+#            self.group = Group.objects.get_or_create(remote_id=abs(owner_id))[0]
+#
+#        super(PhotosAbstractModel, self).parse(response)
+#
+#        self.remote_id = self.get_remote_id(self.remote_id)
 
-    methods_namespace = 'photos'
 
-    remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
-
-    @property
-    def remote_id_short(self):
-        return self.remote_id.split('_')[1]
-
-    @property
-    def slug(self):
-        return self.slug_prefix + str(self.remote_id)
-
-    def get_remote_id(self, id):
-        '''
-        Returns unique remote_id, contains from 2 parts: remote_id of owner or group and remote_id of photo object
-        TODO: перейти на ContentType и избавиться от метода
-        '''
-        if self.owner:
-            remote_id = self.owner.remote_id
-        elif self.group:
-            remote_id = -1 * self.group.remote_id
-
-        return '%s_%s' % (remote_id, id)
-
-    def parse(self, response):
-        # TODO: перейти на ContentType и избавиться от метода
-        owner_id = int(response.pop('owner_id'))
-        if owner_id > 0:
-            self.owner = User.objects.get_or_create(remote_id=owner_id)[0]
-        else:
-            self.group = Group.objects.get_or_create(remote_id=abs(owner_id))[0]
-
-        super(PhotosAbstractModel, self).parse(response)
-
-        self.remote_id = self.get_remote_id(self.remote_id)
-
-
-class Album(PhotosAbstractModel):
-    class Meta:
-        verbose_name = u'Альбом фотографий Facebook'
-        verbose_name_plural = u'Альбомы фотографий Facebook'
-
-    remote_pk_field = 'aid'
-    slug_prefix = 'album'
+class Album(FacebookGraphIDModel):
+    #remote_pk_field = 'aid'
+    #slug_prefix = 'album'
 
     can_upload = models.BooleanField()
-    count = models.PositiveIntegerField(u'Кол-во фотографий')
+    count = models.PositiveIntegerField(u'Кол-во фотографий', default=0)
     cover_photo = models.CharField(max_length='200')
     link = models.URLField()
     location = models.CharField(max_length='200')
@@ -231,7 +240,7 @@ class Album(PhotosAbstractModel):
     type  = models.CharField(max_length='200')
 
     # TODO: migrate to ContentType framework, remove vkontakte_users and vkontakte_groups dependencies
-    #owner = models.ForeignKey(User, verbose_name=u'Владелец альбома', null=True, related_name='photo_albums')
+    owner = models.ForeignKey(User, verbose_name=u'Владелец альбома', null=True, related_name='photo_albums')
     #group = models.ForeignKey(Group, verbose_name=u'Группа альбома', null=True, related_name='photo_albums')
 
     name = models.CharField(max_length='200')
@@ -248,15 +257,30 @@ class Album(PhotosAbstractModel):
 ##        'edit': 'editAlbum',
 #    })
 
+#    @property
+#    def from(self):
+#        return self.owner
+
+    class Meta:
+        verbose_name = u'Альбом фотографий Facebook'
+        verbose_name_plural = u'Альбомы фотографий Facebook'
+
     def __unicode__(self):
-        return self.title
+        return self.name
 
-    @transaction.commit_on_success
-    def fetch_photos(self, *args, **kwargs):
-        return Photo.remote.fetch(album=self, *args, **kwargs)
+    def save(self, *args, **kwargs):
+        #print args
+        #print kwargs
+        return super(Album, self).save(*args, **kwargs)
+
+#    @transaction.commit_on_success
+#    def fetch_photos(self, *args, **kwargs):
+#        return Photo.remote.fetch(album=self, *args, **kwargs)
 
 
-class Photo(PhotosAbstractModel):
+
+
+class Photo(FacebookGraphIDModel):
     class Meta:
         verbose_name = u'Фотография Facebook'
         verbose_name_plural = u'Фотографии Facebook'
