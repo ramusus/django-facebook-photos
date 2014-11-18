@@ -6,12 +6,12 @@ from models import Album, Photo
 class PhotoInline(admin.TabularInline):
 
     def image(self, instance):
-        return '<img src="%s" />' % (instance.src_small,)
+        return '<img src="%s" />' % (instance.picture,)
     image.short_description = 'photo'
     image.allow_tags = True
 
     model = Photo
-    fields = ('created','image','text','owner','group','user','likes_count','comments_count','tags_count')
+    fields = ('name', 'place', 'created_time')
     readonly_fields = fields
     extra = False
     can_delete = False
@@ -26,17 +26,28 @@ class AlbumAdmin(admin.ModelAdmin):
 class PhotoAdmin(admin.ModelAdmin):
 
     def image_preview(self, obj):
-        return u'<a href="%s"><img src="%s" height="30" /></a>' % (obj.src_big, obj.src)
+        return u'<a href="%s"><img src="%s" height="30" /></a>' % (obj.link, obj.picture)
     image_preview.short_description = u'Картинка'
     image_preview.allow_tags = True
 
-    def text_with_link(self, obj):
-        return u'%s <a href="%s"><strong>ссылка</strong></a>' % (obj.text, (reverse('admin:vkontakte_photos_photo_change', args=(obj.id,))))
-    text_with_link.short_description = u'Текст'
-    text_with_link.allow_tags = True
+#    def text_with_link(self, obj):
+#        return u'%s <a href="%s"><strong>ссылка</strong></a>' % (obj.text, (reverse('admin:vkontakte_photos_photo_change', args=(obj.id,))))
+#    text_with_link.short_description = u'Текст'
+#    text_with_link.allow_tags = True
 
-    list_display = ('image_preview','text_with_link','likes_count','comments_count','tags_count','created')
+#    def fb_link(self, obj):
+#        return u'<a href="%s">fb_link</a>' % obj.link
+#    image_preview.short_description = u'fb_link'
+#    image_preview.allow_tags = True
+
+#    def edit_link(self, obj):
+#        return u'edit'
+#    image_preview.short_description = u'Edit link'
+
+    list_display = ('graph_id', 'image_preview', 'name', 'place', 'created_time')
+    #list_display_links = ('edit_link',)
     list_filter = ('album',)
+
 
 admin.site.register(Album, AlbumAdmin)
 admin.site.register(Photo, PhotoAdmin)
