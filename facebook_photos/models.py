@@ -14,10 +14,13 @@ from django.utils.translation import ugettext as _
 import logging
 import re
 
-from facebook_api.models import FacebookGraphModel, FacebookGraphIDModel, FacebookGraphManager
+from facebook_api import fields
+from facebook_api.models import FacebookGraphModel, FacebookGraphManager #
 from facebook_api.utils import graph
 from facebook_users.models import User
 from facebook_pages.models import Page as Group
+from facebook_posts.models import get_or_create_from_small_resource
+
 
 log = logging.getLogger('facebook_photos')
 
@@ -255,6 +258,12 @@ class Album(FacebookGraphIDModel):
     #remote_pk_field = 'aid'
     #slug_prefix = 'album'
 
+    author_json = fields.JSONField(null=True, help_text='Information about the user who posted the message') # object containing the name and Facebook id of the user who posted the message
+
+    author_content_type = models.ForeignKey(ContentType, null=True, related_name='facebook_albums')
+    author_id = models.PositiveIntegerField(null=True, db_index=True)
+    author = generic.GenericForeignKey('author_content_type', 'author_id')
+
     can_upload = models.BooleanField()
     count = models.PositiveIntegerField(u'Кол-во фотографий', default=0)
     cover_photo = models.CharField(max_length='200')
@@ -297,6 +306,15 @@ class Album(FacebookGraphIDModel):
         #print args
         #print kwargs
         return super(Album, self).save(*args, **kwargs)
+
+    def parse(self, response):
+        if 'from' in response:
+            response['author_json'] = response.pop('from')
+
+        super(Album, self).parse(response)
+
+        if self.author is None and self.author_json:
+            self.author = get_or_create_from_small_resource(self.author_json)
 
 #    @transaction.commit_on_success
 #    def fetch_photos(self, *args, **kwargs):

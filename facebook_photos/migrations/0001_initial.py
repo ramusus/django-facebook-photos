@@ -11,6 +11,9 @@ class Migration(SchemaMigration):
         # Adding model 'Album'
         db.create_table(u'facebook_photos_album', (
             ('graph_id', self.gf('django.db.models.fields.BigIntegerField')(unique=True, max_length=100, primary_key=True)),
+            ('author_json', self.gf('annoying.fields.JSONField')(null=True)),
+            ('author_content_type', self.gf('django.db.models.fields.related.ForeignKey')(related_name='facebook_albums', null=True, to=orm['contenttypes.ContentType'])),
+            ('author_id', self.gf('django.db.models.fields.PositiveIntegerField')(null=True, db_index=True)),
             ('can_upload', self.gf('django.db.models.fields.BooleanField')(default=False)),
             ('count', self.gf('django.db.models.fields.PositiveIntegerField')(default=0)),
             ('cover_photo', self.gf('django.db.models.fields.CharField')(max_length='200')),
@@ -77,6 +80,9 @@ class Migration(SchemaMigration):
         },
         u'facebook_photos.album': {
             'Meta': {'object_name': 'Album'},
+            'author_content_type': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'facebook_albums'", 'null': 'True', 'to': u"orm['contenttypes.ContentType']"}),
+            'author_id': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True', 'db_index': 'True'}),
+            'author_json': ('annoying.fields.JSONField', [], {'null': 'True'}),
             'can_upload': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
             'count': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'}),
             'cover_photo': ('django.db.models.fields.CharField', [], {'max_length': "'200'"}),
