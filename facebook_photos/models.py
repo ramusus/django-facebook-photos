@@ -32,7 +32,7 @@ ALBUM_TYPE_CHOCIES = (
 )
 
 
-#В разработке
+# TODO: in develop
 class FBModelManager(models.Manager):
     def get_by_natural_key(self, graph_id):
         return self.get(graph_id=graph_id)
@@ -291,6 +291,7 @@ class AuthorMixin(models.Model):
         abstract = True
 
 
+
 class Album(AuthorMixin, FacebookGraphIDModel):
     #remote_pk_field = 'aid'
     #slug_prefix = 'album'
@@ -334,15 +335,10 @@ class Album(AuthorMixin, FacebookGraphIDModel):
     def __unicode__(self):
         return self.name
 
-    def save(self, *args, **kwargs):
-        #print args
-        #print kwargs
-        return super(Album, self).save(*args, **kwargs)
-
 
 #    @transaction.commit_on_success
-#    def fetch_photos(self, *args, **kwargs):
-#        return Photo.remote.fetch(album=self, *args, **kwargs)
+    def fetch_photos(self, *args, **kwargs):
+        return Photo.remote.fetch(album=self, *args, **kwargs)
 
 
 
