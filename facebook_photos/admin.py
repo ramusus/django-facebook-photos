@@ -18,7 +18,7 @@ class PhotoInline(admin.TabularInline):
 
 class AlbumAdmin(admin.ModelAdmin):
 
-    list_display = ('name','count', 'owner', 'place', 'privacy', 'type', 'created_time','updated_time')
+    list_display = ('name', 'count', 'author', 'place', 'privacy', 'type', 'created_time', 'updated_time')
     list_display_links = ('name',)
     search_fields = ('name','description')
     inlines = [PhotoInline]

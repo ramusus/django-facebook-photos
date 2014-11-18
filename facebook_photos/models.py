@@ -32,6 +32,13 @@ ALBUM_TYPE_CHOCIES = (
 )
 
 
+#В разработке
+class FBModelManager(models.Manager):
+    def get_by_natural_key(self, graph_id):
+        return self.get(graph_id=graph_id)
+
+
+
 class AlbumRemoteManager(FacebookGraphManager):
 
     @transaction.commit_on_success
@@ -264,16 +271,30 @@ class FacebookGraphIDModel(FacebookGraphModel):
 
 
 
+class AuthorMixin(models.Model):
+    author_json = fields.JSONField(null=True, help_text='Information about the user who posted the message') # object containing the name and Facebook id of the user who posted the message
 
-class Album(FacebookGraphIDModel):
+    author_content_type = models.ForeignKey(ContentType, null=True) # , related_name='facebook_albums'
+    author_id = models.PositiveIntegerField(null=True, db_index=True)
+    author = generic.GenericForeignKey('author_content_type', 'author_id')
+
+    def parse(self, response):
+        if 'from' in response:
+            response['author_json'] = response.pop('from')
+
+        super(AuthorMixin, self).parse(response)
+
+        if self.author is None and self.author_json:
+            self.author = get_or_create_from_small_resource(self.author_json)
+
+    class Meta:
+        abstract = True
+
+
+class Album(AuthorMixin, FacebookGraphIDModel):
     #remote_pk_field = 'aid'
     #slug_prefix = 'album'
 
-    author_json = fields.JSONField(null=True, help_text='Information about the user who posted the message') # object containing the name and Facebook id of the user who posted the message
-
-    author_content_type = models.ForeignKey(ContentType, null=True, related_name='facebook_albums')
-    author_id = models.PositiveIntegerField(null=True, db_index=True)
-    author = generic.GenericForeignKey('author_content_type', 'author_id')
 
     can_upload = models.BooleanField()
     count = models.PositiveIntegerField(u'Кол-во фотографий', default=0)
@@ -285,7 +306,7 @@ class Album(FacebookGraphIDModel):
     type = models.CharField(max_length='200')
 
     # TODO: migrate to ContentType framework, remove vkontakte_users and vkontakte_groups dependencies
-    owner = models.ForeignKey(User, verbose_name=u'Владелец альбома', null=True, related_name='photo_albums')
+    #owner = models.ForeignKey(User, verbose_name=u'Владелец альбома', null=True, related_name='photo_albums')
     #group = models.ForeignKey(Group, verbose_name=u'Группа альбома', null=True, related_name='photo_albums')
 
     name = models.CharField(max_length='200')
@@ -318,14 +339,6 @@ class Album(FacebookGraphIDModel):
         #print kwargs
         return super(Album, self).save(*args, **kwargs)
 
-    def parse(self, response):
-        if 'from' in response:
-            response['author_json'] = response.pop('from')
-
-        super(Album, self).parse(response)
-
-        if self.author is None and self.author_json:
-            self.author = get_or_create_from_small_resource(self.author_json)
 
 #    @transaction.commit_on_success
 #    def fetch_photos(self, *args, **kwargs):
@@ -334,7 +347,7 @@ class Album(FacebookGraphIDModel):
 
 
 
-class Photo(FacebookGraphIDModel):
+class Photo(AuthorMixin, FacebookGraphIDModel):
     album = models.ForeignKey(Album, verbose_name=u'Альбом', related_name='photos', null=True)
 
     # TODO: switch to ContentType, remove owner and group foreignkeys
