@@ -116,12 +116,19 @@ class PhotoRemoteManager(FacebookGraphManager):
         if graph_id:
             return super(PhotoRemoteManager, self).fetch(graph_id)
         elif album:
+            if isinstance(album, int):
+                album = Album.objects.get(pk=album)
+            album_id = album.graph_id
+
+
             ids = []
-            response = graph("%s/photos/" % album, limit=limit)
+            response = graph("%s/photos" % album_id, limit=limit)
             #log.debug('response objects count - %s' % len(response.data))
 
             for resource in response.data:
                 instance = self.get_or_create_from_resource(resource)
+                instance.album = album
+                instance.save()
                 ids += [instance.pk]
 
             return Photo.objects.filter(pk__in=ids), response
@@ -143,7 +150,7 @@ class CommentRemoteManager(FacebookGraphManager):
     def fetch_photo(self, photo, offset=0, count=100, sort='asc', need_likes=True, before=None, after=None, **kwargs):
         if count > 100:
             raise ValueError("Attribute 'count' can not be more than 100")
-        if sort not in ['asc','desc']:
+        if sort not in ['asc', 'desc']:
             raise ValueError("Attribute 'sort' should be equal to 'asc' or 'desc'")
         if sort == 'asc' and after:
             raise ValueError("Attribute `sort` should be equal to 'desc' with defined `after` attribute")
@@ -246,7 +253,11 @@ class FacebookGraphIDModel(FacebookGraphModel):
         return 'http://facebook.com/%s' % slug
 
     def _substitute(self, old_instance):
-        pass
+        return None
+
+    @property
+    def id(self):
+        return self.graph_id # return self.pk
 
     class Meta:
         abstract = True
@@ -269,9 +280,9 @@ class Album(FacebookGraphIDModel):
     cover_photo = models.CharField(max_length='200')
     link = models.URLField(max_length=255)
     location = models.CharField(max_length='200')
-    place  = models.CharField(max_length='200') # page
-    privacy  = models.CharField(max_length='200')
-    type  = models.CharField(max_length='200')
+    place = models.CharField(max_length='200') # page
+    privacy = models.CharField(max_length='200')
+    type = models.CharField(max_length='200')
 
     # TODO: migrate to ContentType framework, remove vkontakte_users and vkontakte_groups dependencies
     owner = models.ForeignKey(User, verbose_name=u'Владелец альбома', null=True, related_name='photo_albums')
@@ -364,8 +375,14 @@ class Photo(FacebookGraphIDModel):
         verbose_name_plural = u'Фотографии Facebook'
 
 
-#    def parse(self, response):
-#        super(Photo, self).parse(response)
+    def parse(self, response):
+        if 'album' in response:
+            print response["album"]
+            self.album = response["album"]
+
+        super(Photo, self).parse(response)
+
+
 #
 #        # counters
 #        for field_name in ['likes','comments','tags']:
@@ -441,7 +458,7 @@ class Photo(FacebookGraphIDModel):
 #        return Comment.remote.fetch_photo(photo=self, *args, **kwargs)
 
 
-class Comment(FacebookGraphIDModel):
+class Comment(): #FacebookGraphIDModel
     class Meta:
         verbose_name = u'Коммментарий фотографии Вконтакте'
         verbose_name_plural = u'Коммментарии фотографий Вконтакте'
