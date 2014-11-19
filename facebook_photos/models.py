@@ -18,7 +18,7 @@ from facebook_api import fields
 from facebook_api.models import FacebookGraphModel, FacebookGraphManager #
 from facebook_api.utils import graph
 from facebook_users.models import User
-from facebook_pages.models import Page as Group
+from facebook_pages.models import Page
 from facebook_posts.models import get_or_create_from_small_resource
 
 
@@ -70,8 +70,11 @@ class AlbumRemoteManager(FacebookGraphManager):
         if graph_id:
             return super(AlbumRemoteManager, self).fetch(graph_id)
         elif page:
+            if not isinstance(page, (int, str)):
+                page = page.graph_id
+
+
             ids = []
-            #q = "%s/albums/" % page
             response = graph("%s/albums/" % page, **kwargs)
             #log.debug('response objects count - %s' % len(response.data))
 
@@ -79,7 +82,7 @@ class AlbumRemoteManager(FacebookGraphManager):
                 instance = self.get_or_create_from_resource(resource)
                 ids += [instance.pk]
 
-            return Album.objects.filter(pk__in=ids), response
+            return Album.objects.filter(pk__in=ids)
 
 
 
@@ -123,10 +126,9 @@ class PhotoRemoteManager(FacebookGraphManager):
         if graph_id:
             return super(PhotoRemoteManager, self).fetch(graph_id)
         elif album:
-            if isinstance(album, int):
+            if isinstance(album, (int, str)):
                 album = Album.objects.get(pk=album)
             album_id = album.graph_id
-
 
             ids = []
             response = graph("%s/photos" % album_id, limit=limit)
@@ -138,7 +140,7 @@ class PhotoRemoteManager(FacebookGraphManager):
                 instance.save()
                 ids += [instance.pk]
 
-            return Photo.objects.filter(pk__in=ids), response
+            return Photo.objects.filter(pk__in=ids)
 
 
 
@@ -237,7 +239,7 @@ class Album(AuthorMixin, FacebookGraphIDModel):
 
     can_upload = models.BooleanField()
     count = models.PositiveIntegerField(u'Кол-во фотографий', default=0)
-    cover_photo = models.CharField(max_length='200')
+    cover_photo = models.BigIntegerField(null=True)
     link = models.URLField(max_length=255)
     location = models.CharField(max_length='200')
     place = models.CharField(max_length='200') # page
@@ -269,6 +271,7 @@ class Album(AuthorMixin, FacebookGraphIDModel):
     class Meta:
         verbose_name = u'Альбом фотографий Facebook'
         verbose_name_plural = u'Альбомы фотографий Facebook'
+        ordering = ['-updated_time']
 
     def __unicode__(self):
         return self.name
