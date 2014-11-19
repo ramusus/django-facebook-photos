@@ -142,9 +142,7 @@ class PhotoRemoteManager(FacebookGraphManager):
 
             return Photo.objects.filter(pk__in=ids)
 
-
-
-        return super(PhotoRemoteManager, self).fetch(**kwargs)
+#        return super(PhotoRemoteManager, self).fetch(**kwargs)
 
 
 

@@ -1,7 +1,7 @@
 #from vkontakte_users.factories import UserFactory
 #from vkontakte_groups.factories import GroupFactory
 from models import Album, Photo
-from datetime import datetime
+from django.utils import timezone as datetime
 import factory
 import random
 
@@ -15,7 +15,7 @@ class AlbumFactory(factory.DjangoModelFactory):
 
     created_time = datetime.now()
     updated_time = datetime.now()
-    size = 1
+
 
 class PhotoFactory(factory.DjangoModelFactory):
     FACTORY_FOR = Photo
