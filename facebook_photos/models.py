@@ -97,11 +97,10 @@ class PhotoRemoteManager(FacebookGraphManager):
         if before and before < after:
             raise ValueError("Attribute `before` should be later, than attribute `after`")
 
-        kwargs = {
-            #'album': album,
-            'extended': int(extended),
+        kwargs.update({
+            'limit': int(limit),
             'offset': int(offset),
-        }
+        })
 #        if album.owner:
 #            kwargs.update({'uid': album.owner.remote_id})
 #        elif album.group:
@@ -114,8 +113,8 @@ class PhotoRemoteManager(FacebookGraphManager):
 #        kwargs['rev'] = int(rev)
 
         # special parameters
-        kwargs['after'] = after
-        kwargs['before'] = before
+        #kwargs['after'] = after
+        #kwargs['before'] = before
 
         # TODO: добавить поля
         #feed
@@ -131,7 +130,7 @@ class PhotoRemoteManager(FacebookGraphManager):
             album_id = album.graph_id
 
             ids = []
-            response = graph("%s/photos" % album_id, limit=limit)
+            response = graph("%s/photos" % album_id, **kwargs)
             #log.debug('response objects count - %s' % len(response.data))
 
             for resource in response.data:

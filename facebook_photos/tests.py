@@ -102,6 +102,16 @@ class FacebookPhotosTest(TestCase):
 #        self.assertEqual(len(photos), Photo.objects.count())
 #        self.assertEqual(len(photos), 1)
 
+    def test_fetch_limit(self):
+        album = AlbumFactory(graph_id=ALBUM_ID)
+        photos1 = Photo.remote.fetch(album=album, limit=5)
+        self.assertEqual(len(photos1), 5)
+
+        # offset test
+        photos2 = Photo.remote.fetch(album=album, limit=5, offset=4)
+        self.assertEqual(photos1[4], photos2[0])
+
+
 #    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory.create(remote_id=i) for i in ids]]))
 #    def test_fetch_photo_comments(self, *kwargs):
 #
