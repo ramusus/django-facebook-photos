@@ -42,9 +42,14 @@ class FBModelManager(models.Manager):
 class AlbumRemoteManager(FacebookGraphManager):
 
     @transaction.commit_on_success
-    def fetch(self, graph_id=None, user=None, page=None, ids=None, need_covers=False, before=None, after=None, **kwargs):
+    def fetch(self, graph_id=None, user=None, page=None, ids=None, limit=1000, need_covers=False, before=None, after=None, **kwargs):
         if not (graph_id or user or page):
             raise ValueError("You must specify user or page, which albums you want to fetch")
+
+        kwargs.update({
+            'limit': int(limit),
+        })
+
 
 #        kwargs = {
 #            #need_covers
@@ -90,12 +95,14 @@ class PhotoRemoteManager(FacebookGraphManager):
 
     @transaction.commit_on_success
     def fetch(self, graph_id=None, album=None, ids=None, limit=1000, extended=False, offset=0, photo_sizes=False, before=None, rev=0, after=None, **kwargs):
+        if not (graph_id or album):
+            raise ValueError("You must specify graph_id or page, which photos you want to fetch")
         if ids and not isinstance(ids, (tuple, list)):
             raise ValueError("Attribute 'ids' should be tuple or list")
-        if before and not after:
-            raise ValueError("Attribute `before` should be specified with attribute `after`")
-        if before and before < after:
-            raise ValueError("Attribute `before` should be later, than attribute `after`")
+#        if before and not after:
+#            raise ValueError("Attribute `before` should be specified with attribute `after`")
+#        if before and before < after:
+#            raise ValueError("Attribute `before` should be later, than attribute `after`")
 
         kwargs.update({
             'limit': int(limit),

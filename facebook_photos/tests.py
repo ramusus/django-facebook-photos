@@ -67,6 +67,23 @@ class FacebookAlbumTest(TestCase):
 #        self.assertEqual(len(albums), Album.objects.count())
 #        self.assertEqual(len(albums), 5)
 
+    def test_fetch_limit(self):
+        page = PageFactory(graph_id=PAGE_ID)
+        albums = Album.remote.fetch(page=page, limit=5)
+        self.assertEqual(len(albums), 5)
+
+    def test_page_parameter(self):
+        page = PageFactory(graph_id=PAGE_ID)
+
+        albums1 = Album.remote.fetch(page=page, limit=1)
+        albums2 = Album.remote.fetch(page=PAGE_ID, limit=1)
+        albums3 = Album.remote.fetch(page=str(PAGE_ID), limit=1)
+
+        self.assertItemsEqual(albums1, albums2)
+        self.assertItemsEqual(albums1, albums3)
+
+
+
 class FacebookPhotosTest(TestCase):
 
     def test_fetch_album_photos(self):
@@ -110,6 +127,17 @@ class FacebookPhotosTest(TestCase):
         # offset test
         photos2 = Photo.remote.fetch(album=album, limit=5, offset=4)
         self.assertEqual(photos1[4], photos2[0])
+
+    def test_album_parameter(self):
+        album = AlbumFactory(graph_id=ALBUM_ID)
+
+        photos1 = Photo.remote.fetch(album=album, limit=1)
+        photos2 = Photo.remote.fetch(album=ALBUM_ID, limit=1)
+        photos3 = Photo.remote.fetch(album=str(ALBUM_ID), limit=1)
+
+        self.assertItemsEqual(photos1, photos2)
+        self.assertItemsEqual(photos1, photos3)
+
 
 
 #    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory.create(remote_id=i) for i in ids]]))
