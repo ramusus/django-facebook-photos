@@ -20,6 +20,8 @@ import simplejson as json
 
 PAGE_ID = 40796308305
 ALBUM_ID = 10153647747263306
+PHOTO_ID = 10153647748153306
+
 
 
 class FacebookAlbumTest(TestCase):
@@ -38,11 +40,12 @@ class FacebookAlbumTest(TestCase):
         self.assertEqual(Album.objects.count(), 0)
 
         albums = Album.remote.fetch(page=page)
-        #print albums
 
         self.assertTrue(len(albums) > 0)
         self.assertEqual(Album.objects.count(), len(albums))
         self.assertEqual(albums[0].author, page)
+        #self.assertTrue(albums[0].likes_count > 0)
+        #self.assertTrue(albums[0].comments_count > 0)
 
         # check force ordering
         self.assertListEqual(list(albums), list(Album.objects.order_by('-updated_time')))
@@ -66,6 +69,11 @@ class FacebookAlbumTest(TestCase):
 #        albums = group.fetch_albums(before=before, after=after)
 #        self.assertEqual(len(albums), Album.objects.count())
 #        self.assertEqual(len(albums), 5)
+
+    def test_likes_and_comments_count(self):
+        a = Album.remote.fetch(ALBUM_ID)
+        self.assertGreater(a.likes_count, 0)
+        self.assertGreater(a.comments_count, 0)
 
     def test_fetch_limit(self):
         page = PageFactory(graph_id=PAGE_ID)
@@ -96,8 +104,6 @@ class FacebookPhotosTest(TestCase):
         self.assertTrue(len(photos) > 0)
         self.assertEqual(Photo.objects.count(), len(photos))
         self.assertEqual(photos[0].album, album)
-        #self.assertTrue(photos[0].likes_count > 0)
-        #self.assertTrue(photos[0].comments_count > 0)
 
 #        # testing `after` parameter
 #        after = Photo.objects.order_by('-created')[4].created.replace(tzinfo=None)
@@ -119,6 +125,12 @@ class FacebookPhotosTest(TestCase):
 #        self.assertEqual(len(photos), Photo.objects.count())
 #        self.assertEqual(len(photos), 1)
 
+    def test_likes_and_comments_count(self):
+        p = Photo.remote.fetch(PHOTO_ID)
+        self.assertGreater(p.likes_count, 0)
+        self.assertGreater(p.comments_count, 0)
+
+
     def test_fetch_limit(self):
         album = AlbumFactory(graph_id=ALBUM_ID)
         photos1 = Photo.remote.fetch(album=album, limit=5)
@@ -126,7 +138,10 @@ class FacebookPhotosTest(TestCase):
 
         # offset test
         photos2 = Photo.remote.fetch(album=album, limit=5, offset=4)
-        self.assertEqual(photos1[4], photos2[0])
+        #print photos1.values("pk")
+        #print photos2.values("pk")
+
+        self.assertEqual(photos1[4].pk, photos2[0].pk)
 
     def test_album_parameter(self):
         album = AlbumFactory(graph_id=ALBUM_ID)

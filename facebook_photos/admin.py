@@ -18,7 +18,7 @@ class PhotoInline(admin.TabularInline):
 
 class AlbumAdmin(admin.ModelAdmin):
 
-    list_display = ('name', 'count', 'author', 'place', 'privacy', 'type', 'created_time', 'updated_time')
+    list_display = ('name', 'count', 'likes_count', 'comments_count', 'author', 'place', 'privacy', 'type', 'created_time', 'updated_time')
     list_display_links = ('name',)
     search_fields = ('name','description')
     inlines = [PhotoInline]
@@ -44,7 +44,7 @@ class PhotoAdmin(admin.ModelAdmin):
 #        return u'edit'
 #    image_preview.short_description = u'Edit link'
 
-    list_display = ('graph_id', 'image_preview', 'name', 'place', 'created_time')
+    list_display = ('graph_id', 'image_preview', 'likes_count', 'comments_count', 'name', 'place', 'created_time')
     #list_display_links = ('edit_link',)
     list_filter = ('album',)
 

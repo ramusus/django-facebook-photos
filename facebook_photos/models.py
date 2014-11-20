@@ -21,6 +21,7 @@ from facebook_users.models import User
 from facebook_pages.models import Page
 from facebook_posts.models import get_or_create_from_small_resource
 
+from m2m_history.fields import ManyToManyHistoryField
 
 log = logging.getLogger('facebook_photos')
 
@@ -148,50 +149,6 @@ class PhotoRemoteManager(FacebookGraphManager):
 
             return Photo.objects.filter(pk__in=ids)
 
-#        return super(PhotoRemoteManager, self).fetch(**kwargs)
-
-
-
-
-#class PhotosAbstractModel(FacebookGraphModel):
-#    class Meta:
-#        abstract = True
-#
-#    methods_namespace = 'photos'
-#
-#    remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
-#
-#    @property
-#    def remote_id_short(self):
-#        return self.remote_id.split('_')[1]
-#
-#    @property
-#    def slug(self):
-#        return self.slug_prefix + str(self.remote_id)
-#
-#    def get_remote_id(self, id):
-#        '''
-#        Returns unique remote_id, contains from 2 parts: remote_id of owner or group and remote_id of photo object
-#        TODO: перейти на ContentType и избавиться от метода
-#        '''
-#        if self.owner:
-#            remote_id = self.owner.remote_id
-#        elif self.group:
-#            remote_id = -1 * self.group.remote_id
-#
-#        return '%s_%s' % (remote_id, id)
-#
-#    def parse(self, response):
-#        # TODO: перейти на ContentType и избавиться от метода
-#        owner_id = int(response.pop('owner_id'))
-#        if owner_id > 0:
-#            self.owner = User.objects.get_or_create(remote_id=owner_id)[0]
-#        else:
-#            self.group = Group.objects.get_or_create(remote_id=abs(owner_id))[0]
-#
-#        super(PhotosAbstractModel, self).parse(response)
-#
-#        self.remote_id = self.get_remote_id(self.remote_id)
 
 
 class FacebookGraphIDModel(FacebookGraphModel):
@@ -236,7 +193,33 @@ class AuthorMixin(models.Model):
 
 
 
-class Album(AuthorMixin, FacebookGraphIDModel):
+class LikesCountMixin(models.Model):
+    likes_count = models.IntegerField(null=True, help_text='The number of comments of this item')
+
+    class Meta:
+        abstract = True
+
+    def parse(self, response):
+        if 'likes' in response:
+            response['likes_count'] = len(response['likes']["data"])
+        super(LikesCountMixin, self).parse(response)
+
+
+
+class CommentsCountMixin(models.Model):
+    comments_count = models.IntegerField(null=True, help_text='The number of comments of this item')
+
+    class Meta:
+        abstract = True
+
+    def parse(self, response):
+        if 'comments' in response:
+            response['comments_count'] = len(response['comments']["data"])
+        super(CommentsCountMixin, self).parse(response)
+
+
+
+class Album(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIDModel):
     #remote_pk_field = 'aid'
     #slug_prefix = 'album'
 
@@ -288,7 +271,7 @@ class Album(AuthorMixin, FacebookGraphIDModel):
 
 
 
-class Photo(AuthorMixin, FacebookGraphIDModel):
+class Photo(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIDModel):
     album = models.ForeignKey(Album, verbose_name=u'Альбом', related_name='photos', null=True)
 
     # TODO: switch to ContentType, remove owner and group foreignkeys
