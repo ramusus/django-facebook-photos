@@ -134,25 +134,15 @@ class FacebookPhotosTest(TestCase):
 
     def test_fetch_limit(self):
         album = AlbumFactory(graph_id=ALBUM_ID)
-        photos1 = Photo.remote.fetch(album=album, limit=5)
+        photos1 = Photo.remote.fetch_by_album(album=album, limit=5)
         self.assertEqual(len(photos1), 5)
 
         # offset test
-        photos2 = Photo.remote.fetch(album=album, limit=5, offset=4)
+        photos2 = Photo.remote.fetch_by_album(album=album, limit=5, offset=4)
         #print photos1.values("pk")
         #print photos2.values("pk")
 
         self.assertEqual(photos1[4].pk, photos2[0].pk)
-
-    def test_album_parameter(self):
-        album = AlbumFactory(graph_id=ALBUM_ID)
-
-        photos1 = Photo.remote.fetch(album=album, limit=1)
-        photos2 = Photo.remote.fetch(album=ALBUM_ID, limit=1)
-        photos3 = Photo.remote.fetch(album=str(ALBUM_ID), limit=1)
-
-        self.assertItemsEqual(photos1, photos2)
-        self.assertItemsEqual(photos1, photos3)
 
 
 

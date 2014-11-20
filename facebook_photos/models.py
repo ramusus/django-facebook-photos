@@ -94,12 +94,8 @@ class AlbumRemoteManager(FacebookGraphManager):
 
 class PhotoRemoteManager(FacebookGraphManager):
 
-    @transaction.commit_on_success
-    def fetch(self, graph_id=None, album=None, ids=None, limit=100, extended=False, offset=0, photo_sizes=False, before=None, rev=0, after=None, **kwargs):
-        if not (graph_id or album):
-            raise ValueError("You must specify graph_id or page, which photos you want to fetch")
-        if ids and not isinstance(ids, (tuple, list)):
-            raise ValueError("Attribute 'ids' should be tuple or list")
+    #@transaction.commit_on_success
+    def fetch_by_album(self, album, limit=100, extended=False, offset=0, photo_sizes=False, before=None, rev=0, after=None, **kwargs):
 #        if before and not after:
 #            raise ValueError("Attribute `before` should be specified with attribute `after`")
 #        if before and before < after:
@@ -130,24 +126,16 @@ class PhotoRemoteManager(FacebookGraphManager):
         #feed_type
         #Тип новости получаемый в поле type метода newsfeed.get, для получения только загруженных пользователем фотографий, либо только фотографий, на которых он был отмечен. Может принимать значения photo, photo_tag.
 
-        if graph_id:
-            return super(PhotoRemoteManager, self).fetch(graph_id)
-        elif album:
-            if isinstance(album, (int, str)):
-                album = Album.objects.get(pk=album)
-            album_id = album.graph_id
+        ids = []
+        response = graph("%s/photos" % album.pk, **kwargs)
+        #log.debug('response objects count - %s' % len(response.data))
 
-            ids = []
-            response = graph("%s/photos" % album_id, **kwargs)
-            #log.debug('response objects count - %s' % len(response.data))
+        extra_fields = {"album_id": album.pk }
+        for resource in response.data:
+            instance = self.get_or_create_from_resource(resource, extra_fields)
+            ids += [instance.pk]
 
-            extra_fields = {"album_id": (album.graph_id) }
-            for resource in response.data:
-                instance = self.get_or_create_from_resource(resource, extra_fields)
-
-                ids += [instance.pk]
-
-            return Photo.objects.filter(pk__in=ids)
+        return Photo.objects.filter(pk__in=ids)
 
 
 
@@ -264,8 +252,8 @@ class Album(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIDMod
 
 
 #    @transaction.commit_on_success
-    def fetch_photos(self, *args, **kwargs):
-        return Photo.remote.fetch(album=self, *args, **kwargs)
+    def fetch_photos(self, **kwargs):
+        return Photo.remote.fetch_by_album(album=self, **kwargs)
 
     def parse(self, response):
         response['photos_count'] = response.get("count", 0)
