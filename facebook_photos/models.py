@@ -42,10 +42,8 @@ class FBModelManager(models.Manager):
 
 class AlbumRemoteManager(FacebookGraphManager):
 
-    @transaction.commit_on_success
-    def fetch(self, graph_id=None, user=None, page=None, ids=None, limit=1000, need_covers=False, before=None, after=None, **kwargs):
-        if not (graph_id or user or page):
-            raise ValueError("You must specify user or page, which albums you want to fetch")
+    #@transaction.commit_on_success
+    def fetch_by_page(self, page, limit=1000, before=None, after=None, **kwargs):
 
         kwargs.update({
             'limit': int(limit),
@@ -73,22 +71,16 @@ class AlbumRemoteManager(FacebookGraphManager):
 #        # special parameters
 #        kwargs['after'] = after
 #        kwargs['before'] = before
-        if graph_id:
-            return super(AlbumRemoteManager, self).fetch(graph_id)
-        elif page:
-            if not isinstance(page, (int, str)):
-                page = page.graph_id
 
+        ids = []
+        response = graph("%s/albums/" % page.graph_id, **kwargs)
+        #log.debug('response objects count - %s' % len(response.data))
 
-            ids = []
-            response = graph("%s/albums/" % page, **kwargs)
-            #log.debug('response objects count - %s' % len(response.data))
+        for resource in response.data:
+            instance = self.get_or_create_from_resource(resource)
+            ids += [instance.pk]
 
-            for resource in response.data:
-                instance = self.get_or_create_from_resource(resource)
-                ids += [instance.pk]
-
-            return Album.objects.filter(pk__in=ids)
+        return Album.objects.filter(pk__in=ids)
 
 
 

@@ -41,7 +41,7 @@ class FacebookAlbumTest(TestCase):
 
         self.assertEqual(Album.objects.count(), 0)
 
-        albums = Album.remote.fetch(page=page)
+        albums = Album.remote.fetch_by_page(page=page)
 
         self.assertTrue(len(albums) > 0)
         self.assertEqual(Album.objects.count(), len(albums))
@@ -76,18 +76,8 @@ class FacebookAlbumTest(TestCase):
 
     def test_fetch_limit(self):
         page = PageFactory(graph_id=PAGE_ID)
-        albums = Album.remote.fetch(page=page, limit=5)
+        albums = Album.remote.fetch_by_page(page=page, limit=5)
         self.assertEqual(len(albums), 5)
-
-    def test_page_parameter(self):
-        page = PageFactory(graph_id=PAGE_ID)
-
-        albums1 = Album.remote.fetch(page=page, limit=1)
-        albums2 = Album.remote.fetch(page=PAGE_ID, limit=1)
-        albums3 = Album.remote.fetch(page=str(PAGE_ID), limit=1)
-
-        self.assertItemsEqual(albums1, albums2)
-        self.assertItemsEqual(albums1, albums3)
 
 
 
