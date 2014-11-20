@@ -141,10 +141,10 @@ class PhotoRemoteManager(FacebookGraphManager):
             response = graph("%s/photos" % album_id, **kwargs)
             #log.debug('response objects count - %s' % len(response.data))
 
+            extra_fields = {"album_id": (album.graph_id) }
             for resource in response.data:
-                instance = self.get_or_create_from_resource(resource)
-                instance.album = album
-                instance.save()
+                instance = self.get_or_create_from_resource(resource, extra_fields)
+
                 ids += [instance.pk]
 
             return Photo.objects.filter(pk__in=ids)
