@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 from django.core.urlresolvers import reverse
+
+from facebook_api.admin import FacebookModelAdmin
+
 from models import Album, Photo
 
 class PhotoInline(admin.TabularInline):
@@ -16,14 +19,14 @@ class PhotoInline(admin.TabularInline):
     extra = False
     can_delete = False
 
-class AlbumAdmin(admin.ModelAdmin):
+class AlbumAdmin(FacebookModelAdmin):
 
-    list_display = ('name', 'photos_count', 'likes_count', 'comments_count', 'author', 'place', 'privacy', 'type', 'created_time', 'updated_time')
+    list_display = ('name', 'graph_id', 'photos_count', 'likes_count', 'comments_count', 'author', 'place', 'privacy', 'type', 'created_time', 'updated_time')
     list_display_links = ('name',)
     search_fields = ('name','description')
     inlines = [PhotoInline]
 
-class PhotoAdmin(admin.ModelAdmin):
+class PhotoAdmin(FacebookModelAdmin):
 
     def image_preview(self, obj):
         return u'<a href="%s"><img src="%s" height="30" /></a>' % (obj.link, obj.picture)
