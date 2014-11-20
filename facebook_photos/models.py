@@ -95,7 +95,7 @@ class AlbumRemoteManager(FacebookGraphManager):
 class PhotoRemoteManager(FacebookGraphManager):
 
     @transaction.commit_on_success
-    def fetch(self, graph_id=None, album=None, ids=None, limit=1000, extended=False, offset=0, photo_sizes=False, before=None, rev=0, after=None, **kwargs):
+    def fetch(self, graph_id=None, album=None, ids=None, limit=100, extended=False, offset=0, photo_sizes=False, before=None, rev=0, after=None, **kwargs):
         if not (graph_id or album):
             raise ValueError("You must specify graph_id or page, which photos you want to fetch")
         if ids and not isinstance(ids, (tuple, list)):
@@ -225,7 +225,7 @@ class Album(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIDMod
 
 
     can_upload = models.BooleanField()
-    count = models.PositiveIntegerField(u'Кол-во фотографий', default=0)
+    photos_count = models.PositiveIntegerField(u'Кол-во фотографий', default=0)
     cover_photo = models.BigIntegerField(null=True)
     link = models.URLField(max_length=255)
     location = models.CharField(max_length='200')
@@ -258,7 +258,6 @@ class Album(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIDMod
     class Meta:
         verbose_name = u'Альбом фотографий Facebook'
         verbose_name_plural = u'Альбомы фотографий Facebook'
-        ordering = ['-updated_time']
 
     def __unicode__(self):
         return self.name
@@ -268,6 +267,9 @@ class Album(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIDMod
     def fetch_photos(self, *args, **kwargs):
         return Photo.remote.fetch(album=self, *args, **kwargs)
 
+    def parse(self, response):
+        response['photos_count'] = response.get("count", 0)
+        super(Album, self).parse(response)
 
 
 

@@ -20,7 +20,9 @@ import simplejson as json
 
 PAGE_ID = 40796308305
 ALBUM_ID = 10153647747263306
+ALBUM_ID_2 = 10153634025403306
 PHOTO_ID = 10153647748153306
+
 
 
 
@@ -46,9 +48,6 @@ class FacebookAlbumTest(TestCase):
         self.assertEqual(albums[0].author, page)
         #self.assertTrue(albums[0].likes_count > 0)
         #self.assertTrue(albums[0].comments_count > 0)
-
-        # check force ordering
-        self.assertListEqual(list(albums), list(Album.objects.order_by('-updated_time')))
 
 #        # testing `after` parameter
 #        after = Album.objects.order_by('-updated_time')[10].updated.replace(tzinfo=None)
@@ -95,15 +94,17 @@ class FacebookAlbumTest(TestCase):
 class FacebookPhotosTest(TestCase):
 
     def test_fetch_album_photos(self):
-        album = AlbumFactory(graph_id=ALBUM_ID)
+        album = Album.remote.fetch(ALBUM_ID_2)
 
         self.assertEqual(Photo.objects.count(), 0)
 
         photos = album.fetch_photos()
 
         self.assertTrue(len(photos) > 0)
+        if album.photos_count <= 100:
+            self.assertEqual(len(photos), album.photos_count)
         self.assertEqual(Photo.objects.count(), len(photos))
-        self.assertEqual(photos[0].album, album)
+        self.assertAlmostEqual(photos[0].album_id, int(album.graph_id))
 
 #        # testing `after` parameter
 #        after = Photo.objects.order_by('-created')[4].created.replace(tzinfo=None)
