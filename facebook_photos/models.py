@@ -1,18 +1,14 @@
 # -*- coding: utf-8 -*-
+import logging
+import re
+import time
+from datetime import datetime
+
 from django.db import models, transaction
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 from django.utils import timezone
 from django.utils.translation import ugettext as _
-#from vkontakte_api.utils import api_call
-#from vkontakte_api import fields
-#from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel
-#rom vkontakte_api.decorators import fetch_all
-#from vkontakte_users.models import User
-#from vkontakte_groups.models import Group
-#from parser import VkontaktePhotosParser
-import logging
-import re
 
 from facebook_api import fields
 from facebook_api.models import FacebookGraphModel, FacebookGraphManager #
@@ -20,7 +16,6 @@ from facebook_api.utils import graph
 from facebook_users.models import User
 from facebook_pages.models import Page
 from facebook_posts.models import get_or_create_from_small_resource
-
 from m2m_history.fields import ManyToManyHistoryField
 
 log = logging.getLogger('facebook_photos')
@@ -33,7 +28,7 @@ ALBUM_TYPE_CHOCIES = (
 )
 
 
-# TODO: in develop
+# TODO: in development
 class FBModelManager(models.Manager):
     def get_by_natural_key(self, graph_id):
         return self.get(graph_id=graph_id)
@@ -43,34 +38,23 @@ class FBModelManager(models.Manager):
 class AlbumRemoteManager(FacebookGraphManager):
 
     #@transaction.commit_on_success
-    def fetch_by_page(self, page, limit=1000, before=None, after=None, **kwargs):
+    def fetch_by_page(self, page, limit=1000, until=None, since=None, **kwargs):
 
         kwargs.update({
             'limit': int(limit),
         })
 
 
-#        kwargs = {
-#            #need_covers
-#            #1 - будет возвращено дополнительное поле thumb_src. По умолчанию поле thumb_src не возвращается.
-#            'need_covers': int(need_covers)
-#        }
-#        #uid
-#        #ID пользователя, которому принадлежат альбомы. По умолчанию – ID текущего пользователя.
-#        if user:
-#            kwargs.update({'uid': user.remote_id})
-#        #gid
-#        #ID группы, которой принадлежат альбомы.
-#        if group:
-#            kwargs.update({'gid': group.remote_id})
-#        #aids
-#        #перечисленные через запятую ID альбомов.
-#        if ids:
-#            kwargs.update({'aids': ','.join(map(str, ids))})
-#
-#        # special parameters
-#        kwargs['after'] = after
-#        kwargs['before'] = before
+        for field in ['until', 'since']:
+            value = locals()[field]
+            if isinstance(value, datetime):
+                kwargs[field] = int(time.mktime(value.timetuple()))
+            elif value is not None:
+                try:
+                    kwargs[field] = int(value)
+                except TypeError:
+                    raise ValueError('Wrong type of argument %s: %s' % (field, type(value)))
+
 
         ids = []
         response = graph("%s/albums/" % page.graph_id, **kwargs)
@@ -87,36 +71,23 @@ class AlbumRemoteManager(FacebookGraphManager):
 class PhotoRemoteManager(FacebookGraphManager):
 
     #@transaction.commit_on_success
-    def fetch_by_album(self, album, limit=100, extended=False, offset=0, photo_sizes=False, before=None, rev=0, after=None, **kwargs):
-#        if before and not after:
-#            raise ValueError("Attribute `before` should be specified with attribute `after`")
-#        if before and before < after:
-#            raise ValueError("Attribute `before` should be later, than attribute `after`")
+    def fetch_by_album(self, album, limit=100, offset=0, until=None, since=None, **kwargs):
 
         kwargs.update({
             'limit': int(limit),
             'offset': int(offset),
         })
-#        if album.owner:
-#            kwargs.update({'uid': album.owner.remote_id})
-#        elif album.group:
-#            kwargs.update({'gid': album.group.remote_id})
-#        if ids:
-#            kwargs.update({'photo_ids': ','.join(map(str, ids))})
-#        if limit:
-#            kwargs.update({'limit': limit})
-#
-#        kwargs['rev'] = int(rev)
 
-        # special parameters
-        #kwargs['after'] = after
-        #kwargs['before'] = before
+        for field in ['until', 'since']:
+            value = locals()[field]
+            if isinstance(value, datetime):
+                kwargs[field] = int(time.mktime(value.timetuple()))
+            elif value is not None:
+                try:
+                    kwargs[field] = int(value)
+                except TypeError:
+                    raise ValueError('Wrong type of argument %s: %s' % (field, type(value)))
 
-        # TODO: добавить поля
-        #feed
-        #Unixtime, который может быть получен методом newsfeed.get в поле date, для получения всех фотографий загруженных пользователем в определённый день либо на которых пользователь был отмечен. Также нужно указать параметр uid пользователя, с которым произошло событие.
-        #feed_type
-        #Тип новости получаемый в поле type метода newsfeed.get, для получения только загруженных пользователем фотографий, либо только фотографий, на которых он был отмечен. Может принимать значения photo, photo_tag.
 
         ids = []
         response = graph("%s/photos" % album.pk, **kwargs)

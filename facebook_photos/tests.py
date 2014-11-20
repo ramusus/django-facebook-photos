@@ -5,7 +5,7 @@ from factories import AlbumFactory, PhotoFactory
 #from vkontakte_users.factories import UserFactory, User
 #from vkontakte_groups.factories import GroupFactory
 from facebook_pages.factories import PageFactory
-from datetime import datetime
+from datetime import datetime, timedelta
 import simplejson as json
 #import mock
 
@@ -35,19 +35,34 @@ class FacebookAlbumTest(TestCase):
         for object in self.objects_to_delete:
             object.delete(commit_remote=True)
 
-    def test_fetch_page_albums(self):
+    def test_fetch_albums_by_page(self):
 
         page = PageFactory(graph_id=PAGE_ID)
 
         self.assertEqual(Album.objects.count(), 0)
 
         albums = Album.remote.fetch_by_page(page=page)
+        albums_count = Album.objects.count()
 
         self.assertTrue(len(albums) > 0)
-        self.assertEqual(Album.objects.count(), len(albums))
+        self.assertEqual(albums_count, len(albums))
         self.assertEqual(albums[0].author, page)
-        #self.assertTrue(albums[0].likes_count > 0)
-        #self.assertTrue(albums[0].comments_count > 0)
+
+        # testing `since` parameter
+        Album.objects.all().delete()
+        albums = Album.remote.fetch_by_page(page=page, since=datetime.now() - timedelta(30))
+        albums_count1 = Album.objects.count()
+        self.assertTrue(albums_count1 < albums_count)
+        self.assertEqual(albums_count1, len(albums))
+
+        # testing `until` parameter
+        Album.objects.all().delete()
+        albums = Album.remote.fetch_by_page(page=page, until=datetime.now() - timedelta(30))
+        albums_count1 = Album.objects.count()
+        self.assertTrue(albums_count1 < albums_count)
+        self.assertEqual(albums_count1, len(albums))
+
+
 
 #        # testing `after` parameter
 #        after = Album.objects.order_by('-updated_time')[10].updated.replace(tzinfo=None)
