@@ -1,31 +1,23 @@
-#from vkontakte_users.factories import UserFactory
-#from vkontakte_groups.factories import GroupFactory
-from models import Album, Photo
-from django.utils import timezone as datetime
+from django.utils import timezone
 import factory
-import random
+from models import Album, Photo
+
 
 class AlbumFactory(factory.DjangoModelFactory):
-    FACTORY_FOR = Album
+    created_time = timezone.now()
+    updated_time = timezone.now()
 
-    #remote_id = factory.LazyAttributeSequence(lambda o, n: '-%s_%s' % (o.group.remote_id, n))
-    #thumb_id = factory.Sequence(lambda n: n)
-
-    #group = factory.SubFactory(GroupFactory)
-
-    created_time = datetime.now()
-    updated_time = datetime.now()
+    class Meta:
+        model = Album
 
 
 class PhotoFactory(factory.DjangoModelFactory):
-    FACTORY_FOR = Photo
-
-    #remote_id = factory.LazyAttributeSequence(lambda o, n: '%s_%s' % (o.group.remote_id, n))
-    #user = factory.SubFactory(UserFactory)
     album = factory.SubFactory(AlbumFactory)
-    #group = factory.SubFactory(GroupFactory)
 
-    created_time = datetime.now()
-    updated_time = datetime.now()
+    created_time = timezone.now()
+    updated_time = timezone.now()
     width = 10
     height = 10
+
+    class Meta:
+        model = Photo
