@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from django.test import TestCase
-from models import Album, Photo
+from models import Album, Photo, Comment
 from factories import AlbumFactory, PhotoFactory
 #from vkontakte_users.factories import UserFactory, User
 #from vkontakte_groups.factories import GroupFactory
@@ -95,6 +95,21 @@ class FacebookAlbumTest(TestCase):
         self.assertEqual(len(albums), 5)
 
 
+    def test_fetch_comments(self):
+        #album = AlbumFactory(graph_id=ALBUM_ID_2)
+        album = Album.remote.fetch(ALBUM_ID_2)
+
+        self.assertEqual(Comment.objects.count(), 0)
+
+        comments = album.fetch_comments(all=True)
+        self.assertGreater(album.comments_count, 0)
+        self.assertEqual(album.comments_count, Comment.objects.count())
+        self.assertEqual(album.comments_count, len(comments))
+        self.assertEqual(album.comments_count, album.album_comments.count())
+
+        self.assertAlmostEqual(comments[0].album_id, int(album.graph_id))
+
+
 
 class FacebookPhotosTest(TestCase):
 
@@ -148,6 +163,21 @@ class FacebookPhotosTest(TestCase):
         #print photos2.values("pk")
 
         self.assertEqual(photos1[4].pk, photos2[0].pk)
+
+
+    def test_fetch_comments(self):
+        photo = Photo.remote.fetch(PHOTO_ID)
+
+        self.assertEqual(Comment.objects.count(), 0)
+
+        comments = photo.fetch_comments(all=True)
+        self.assertGreater(photo.comments_count, 0)
+        self.assertEqual(photo.comments_count, Comment.objects.count())
+        self.assertEqual(photo.comments_count, len(comments))
+        self.assertEqual(photo.comments_count, photo.photo_comments.count())
+
+        self.assertAlmostEqual(comments[0].photo_id, int(photo.graph_id))
+
 
 
 

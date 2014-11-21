@@ -4,6 +4,10 @@ import re
 import time
 from datetime import datetime
 
+try:
+    from django.db.transaction import atomic
+except ImportError:
+    from django.db.transaction import commit_on_success as atomic
 from django.db import models, transaction
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
@@ -13,6 +17,7 @@ from django.utils.translation import ugettext as _
 from facebook_api import fields
 from facebook_api.models import FacebookGraphModel, FacebookGraphManager #
 from facebook_api.utils import graph
+from facebook_api.decorators import fetch_all
 from facebook_users.models import User
 from facebook_pages.models import Page
 from facebook_posts.models import get_or_create_from_small_resource
@@ -20,12 +25,6 @@ from m2m_history.fields import ManyToManyHistoryField
 
 log = logging.getLogger('facebook_photos')
 
-ALBUM_TYPE_CHOCIES = (
-    (0, u'Все пользователи'),
-    (1, u'Только друзья'),
-    (2, u'Друзья и друзья друзей'),
-    (3, u'Только я')
-)
 
 
 # TODO: in development
@@ -102,6 +101,79 @@ class PhotoRemoteManager(FacebookGraphManager):
 
 
 
+
+
+class Comment(FacebookGraphModel):
+    #post = models.ForeignKey(Post, related_name='comments')
+
+    graph_id = models.CharField(u'ID', primary_key=True, unique=True, max_length=200, help_text=_('Unique graph ID'))
+
+    album = models.ForeignKey('Album', related_name='album_comments', null=True)
+    photo = models.ForeignKey('Photo', related_name='photo_comments', null=True)
+
+
+    author_json = fields.JSONField(null=True, help_text='Information about the user who posted the comment') # object containing the name and Facebook id of the user who posted the message
+
+    author_content_type = models.ForeignKey(ContentType, null=True)
+    author_id = models.PositiveIntegerField(null=True, db_index=True)
+    author = generic.GenericForeignKey('author_content_type', 'author_id')
+
+    message = models.TextField(help_text='The message')
+    created_time = models.DateTimeField(help_text='The time the comment was initially published', db_index=True)
+
+    can_remove = models.BooleanField(default=False)
+    user_likes = models.BooleanField(default=False)
+
+    #like_users = ManyToManyHistoryField(User, related_name='like_comments')
+
+    objects = models.Manager()
+    remote = FacebookGraphManager()
+
+    def _substitute(self, old_instance):
+        return None
+
+    def save(self, *args, **kwargs):
+        # set exactly right Page or User contentTypes, not a child
+        for field_name in ['author']:
+            for allowed_model in [Page, User]:
+                if isinstance(getattr(self, field_name), allowed_model):
+                    setattr(self, '%s_content_type' % field_name, ContentType.objects.get_for_model(allowed_model))
+                    break
+
+        # check is generic fields has correct content_type
+        if self.author_content_type:
+            allowed_ct_ids = [ct.pk for ct in ContentType.objects.get_for_models(Page, User).values()]
+            if self.author_content_type.pk not in allowed_ct_ids:
+                raise ValueError("'author' field should be Page or User instance")
+
+        return super(Comment, self).save(*args, **kwargs)
+
+
+    def parse(self, response):
+        if 'from' in response:
+            response['author_json'] = response.pop('from')
+        if 'like_count' in response:
+            response['likes_count'] = response.pop('like_count')
+
+#        # transform graph_id from {POST_ID}_{COMMENT_ID} -> {PAGE_ID}_{POST_ID}_{COMMENT_ID}
+#        if response['id'].count('_') == 1:
+#            response['id'] = re.sub(r'^\d+', self.post.graph_id, response['id'])
+
+        super(Comment, self).parse(response)
+
+        if self.author is None and self.author_json:
+            self.author = get_or_create_from_small_resource(self.author_json)
+
+
+    class Meta:
+        verbose_name = 'Facebook comment'
+        verbose_name_plural = 'Facebook comments'
+
+
+
+
+
+
 class FacebookGraphIDModel(FacebookGraphModel):
 
     graph_id = models.BigIntegerField(u'ID', primary_key=True, unique=True, max_length=100, help_text=_('Unique graph ID'))
@@ -169,24 +241,39 @@ class CommentsCountMixin(models.Model):
         super(CommentsCountMixin, self).parse(response)
 
 
+    def update_count_and_get_comments(self, instances, *args, **kwargs):
+        self.comments_count = instances.count()
+        self.save()
+        return instances.all()
+
+    #@atomic
+    #@fetch_all(return_all=update_count_and_get_comments, paging_next_arg_name='after')
+    def fetch_comments(self, limit=1000, filter='stream', summary=True, **kwargs):
+        '''
+        Retrieve and save all comments
+        '''
+        extra_fields = {('%s_id' % self._meta.module_name): self.pk} # {"album_id": 1}
+        ids = []
+        response = graph('%s/comments' % self.graph_id, limit=limit, filter=filter, summary=int(summary), **kwargs)
+        if response:
+            #log.debug('response objects count=%s, limit=%s, after=%s' % (len(response.data), limit, kwargs.get('after')))
+            for resource in response.data:
+                instance = Comment.remote.get_or_create_from_resource(resource, extra_fields)
+                ids += [instance.pk]
+
+        return Comment.objects.filter(pk__in=ids)
+
+
 
 class Album(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIDModel):
-    #remote_pk_field = 'aid'
-    #slug_prefix = 'album'
-
-
     can_upload = models.BooleanField()
-    photos_count = models.PositiveIntegerField(u'Кол-во фотографий', default=0)
+    photos_count = models.PositiveIntegerField(default=0)
     cover_photo = models.BigIntegerField(null=True)
     link = models.URLField(max_length=255)
     location = models.CharField(max_length='200')
     place = models.CharField(max_length='200') # page
     privacy = models.CharField(max_length='200')
     type = models.CharField(max_length='200')
-
-    # TODO: migrate to ContentType framework, remove vkontakte_users and vkontakte_groups dependencies
-    #owner = models.ForeignKey(User, verbose_name=u'Владелец альбома', null=True, related_name='photo_albums')
-    #group = models.ForeignKey(Group, verbose_name=u'Группа альбома', null=True, related_name='photo_albums')
 
     name = models.CharField(max_length='200')
     description = models.TextField()
@@ -197,18 +284,11 @@ class Album(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIDMod
 
     objects = models.Manager()
     remote = AlbumRemoteManager()
-#    remote = AlbumRemoteManager(remote_pk=('remote_id',), methods={
-#        'get': 'getAlbums',
-##        'edit': 'editAlbum',
-#    })
 
-#    @property
-#    def from(self):
-#        return self.owner
 
     class Meta:
-        verbose_name = u'Альбом фотографий Facebook'
-        verbose_name_plural = u'Альбомы фотографий Facebook'
+        verbose_name = 'Facebook Album'
+        verbose_name_plural = 'Facebook Albums'
 
     def __unicode__(self):
         return self.name
@@ -225,7 +305,7 @@ class Album(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIDMod
 
 
 class Photo(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIDModel):
-    album = models.ForeignKey(Album, verbose_name=u'Альбом', related_name='photos', null=True)
+    album = models.ForeignKey(Album, related_name='photos', null=True)
 
     # TODO: switch to ContentType, remove owner and group foreignkeys
     #owner = models.ForeignKey(User, verbose_name=u'Владелец фотографии', null=True, related_name='photos')
@@ -255,98 +335,10 @@ class Photo(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIDMod
 
     objects = models.Manager()
     remote = PhotoRemoteManager()
-#    remote = PhotoRemoteManager(remote_pk=('remote_id',), methods={
-#        'get': 'get',
-#    })
 
 
     class Meta:
-        verbose_name = u'Фотография Facebook'
-        verbose_name_plural = u'Фотографии Facebook'
+        verbose_name = 'Facebook Photo'
+        verbose_name_plural = u'Facebook Photos'
 
 
-    def parse(self, response):
-        if 'album' in response:
-            print response["album"]
-            self.album = response["album"]
-
-        super(Photo, self).parse(response)
-
-
-#
-#        # counters
-#        for field_name in ['likes','comments','tags']:
-#            if field_name in response and 'count' in response[field_name]:
-#                setattr(self, '%s_count' % field_name, response[field_name]['count'])
-#
-#        self.actions_count = self.likes_count + self.comments_count
-#
-#        if 'user_id' in response:
-#            self.user = User.objects.get_or_create(remote_id=response['user_id'])[0]
-#
-#        try:
-#            self.album = Album.objects.get(remote_id=self.get_remote_id(response['aid']))
-#        except Album.DoesNotExist:
-#            raise Exception('Impossible to save photo for unexisted album %s' % (self.get_remote_id(response['aid']),))
-#
-#    def fetch_comments_parser(self):
-#        '''
-#        Fetch total ammount of comments
-#        TODO: implement fetching comments
-#        '''
-#        post_data = {
-#            'act':'photo_comments',
-#            'al': 1,
-#            'offset': 0,
-#            'photo': self.remote_id,
-#        }
-#        #parser = VkontaktePhotosParser().request('/al_photos.php', data=post_data)
-#
-#        self.comments_count = len(parser.content_bs.findAll('div', {'class': 'clear_fix pv_comment '}))
-#        self.save()
-#
-#    def fetch_likes_parser(self):
-#        '''
-#        Fetch total ammount of likes
-#        TODO: implement fetching users who likes
-#        '''
-#        post_data = {
-#            'act':'a_get_stats',
-#            'al': 1,
-#            'list': 'album%s' % self.album.remote_id,
-#            'object': 'photo%s' % self.remote_id,
-#        }
-#        #parser = VkontaktePhotosParser().request('/like.php', data=post_data)
-#
-#        values = re.findall(r'value="(\d+)"', parser.html)
-#        if len(values):
-#            self.likes_count = int(values[0])
-#            self.save()
-#
-#    @transaction.commit_on_success
-#    def fetch_likes(self, *args, **kwargs):
-#
-##        kwargs['offset'] = int(kwargs.pop('offset', 0))
-#        kwargs['likes_type'] = 'photo'
-#        kwargs['item_id'] = self.remote_id.split('_')[1]
-#        kwargs['owner_id'] = self.group.remote_id
-#        if isinstance(self.group, Group):
-#            kwargs['owner_id'] *= -1
-#
-#        log.debug('Fetching likes of %s %s of owner "%s"' % (self._meta.module_name, self.remote_id, self.group))
-#
-#        users = User.remote.fetch_instance_likes(self, *args, **kwargs)
-#
-#        # update self.likes
-#        self.likes_count = self.like_users.count()
-#        self.save()
-#
-#        return users
-#
-#    @transaction.commit_on_success
-#    def fetch_comments(self, *args, **kwargs):
-#        return Comment.remote.fetch_photo(photo=self, *args, **kwargs)
-
-
-
-#import signals
