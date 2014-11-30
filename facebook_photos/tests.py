@@ -10,8 +10,8 @@ from .models import Album, Photo, Comment
 
 PAGE_ID = 40796308305
 ALBUM_ID = 10153647747263306
-ALBUM_ID_2 = 10153634025403306
-PHOTO_ID = 10153647748153306
+ALBUM_ID_2 = 892841980756751
+PHOTO_ID = 915777208463228
 
 
 class FacebookAlbumsTest(TestCase):
@@ -50,26 +50,6 @@ class FacebookAlbumsTest(TestCase):
         self.assertLess(albums_count1, albums_count)
         self.assertEqual(albums_count1, len(albums))
 
-# testing `after` parameter
-#        after = Album.objects.order_by('-updated_time')[10].updated.replace(tzinfo=None)
-#
-#        Album.objects.all().delete()
-#        self.assertEqual(Album.objects.count(), 0)
-#
-#        albums = group.fetch_albums(after=after)
-#        self.assertEqual(len(albums), Album.objects.count())
-#        self.assertEqual(len(albums), 11)
-#
-# testing `before` parameter
-#        before = Album.objects.order_by('-updated_time')[5].updated.replace(tzinfo=None)
-#
-#        Album.objects.all().delete()
-#        self.assertEqual(Album.objects.count(), 0)
-#
-#        albums = group.fetch_albums(before=before, after=after)
-#        self.assertEqual(len(albums), Album.objects.count())
-#        self.assertEqual(len(albums), 5)
-
     def test_likes_and_comments_count(self):
         a = Album.remote.fetch(ALBUM_ID)
         self.assertGreater(a.likes_count, 0)
@@ -87,7 +67,7 @@ class FacebookAlbumsTest(TestCase):
         self.assertEqual(Comment.objects.count(), 0)
 
         comments = album.fetch_comments(all=True)
-        self.assertGreater(album.comments_count, 0)
+        self.assertGreater(album.comments_count, 15)
         self.assertEqual(album.comments_count, Comment.objects.count())
         self.assertEqual(album.comments_count, len(comments))
         self.assertEqual(album.comments_count, album.album_comments.count())
@@ -110,30 +90,10 @@ class FacebookPhotosTest(TestCase):
         self.assertEqual(Photo.objects.count(), len(photos))
         self.assertAlmostEqual(photos[0].album_id, int(album.graph_id))
 
-# testing `after` parameter
-#        after = Photo.objects.order_by('-created')[4].created.replace(tzinfo=None)
-#
-#        Photo.objects.all().delete()
-#        self.assertEqual(Photo.objects.count(), 0)
-#
-#        photos = album.fetch_photos(after=after)
-#        self.assertEqual(len(photos), Photo.objects.count())
-#        self.assertEqual(len(photos), 5)
-#
-# testing `before` parameter
-#        before = Photo.objects.order_by('-created')[2].created.replace(tzinfo=None)
-#
-#        Photo.objects.all().delete()
-#        self.assertEqual(Photo.objects.count(), 0)
-#
-#        photos = album.fetch_photos(before=before, after=after)
-#        self.assertEqual(len(photos), Photo.objects.count())
-#        self.assertEqual(len(photos), 1)
-
     def test_likes_and_comments_count(self):
         p = Photo.remote.fetch(PHOTO_ID)
-        self.assertGreater(p.likes_count, 0)
-        self.assertGreater(p.comments_count, 0)
+        self.assertGreater(p.likes_count, 1000)
+        self.assertGreater(p.comments_count, 300)
 
     def test_fetch_limit(self):
         album = AlbumFactory(graph_id=ALBUM_ID)
@@ -151,7 +111,7 @@ class FacebookPhotosTest(TestCase):
         self.assertEqual(Comment.objects.count(), 0)
 
         comments = photo.fetch_comments(all=True)
-        self.assertGreater(photo.comments_count, 0)
+        self.assertGreater(photo.comments_count, 300)
         self.assertEqual(photo.comments_count, Comment.objects.count())
         self.assertEqual(photo.comments_count, len(comments))
         self.assertEqual(photo.comments_count, photo.photo_comments.count())

@@ -24,8 +24,7 @@ log = logging.getLogger('facebook_photos')
 
 class AlbumRemoteManager(FacebookGraphManager):
 
-    #@transaction.commit_on_success
-
+    @atomic
     def fetch_by_page(self, page, limit=1000, until=None, since=None, **kwargs):
 
         kwargs.update({
@@ -55,8 +54,7 @@ class AlbumRemoteManager(FacebookGraphManager):
 
 class PhotoRemoteManager(FacebookGraphManager):
 
-    #@transaction.commit_on_success
-
+    @atomic
     def fetch_by_album(self, album, limit=100, offset=0, until=None, since=None, **kwargs):
 
         kwargs.update({
@@ -198,7 +196,7 @@ class CommentsCountMixin(models.Model):
         self.save()
         return instances.all()
 
-    #@atomic
+    @atomic
     #@fetch_all(return_all=update_count_and_get_comments, paging_next_arg_name='after')
     def fetch_comments(self, limit=1000, filter='stream', summary=True, **kwargs):
         '''
