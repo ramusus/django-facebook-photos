@@ -22,13 +22,6 @@ from m2m_history.fields import ManyToManyHistoryField
 log = logging.getLogger('facebook_photos')
 
 
-# TODO: in development
-# class FBModelManager(models.Manager):
-#
-#     def get_by_natural_key(self, graph_id):
-#         return self.get(graph_id=graph_id)
-
-
 class AlbumRemoteManager(FacebookGraphManager):
 
     #@transaction.commit_on_success
@@ -262,7 +255,7 @@ class Album(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIntPK
 
 class Photo(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIntPKModel):
 
-    album = models.ForeignKey(Album, related_name='photos')
+    album = models.ForeignKey(Album, related_name='photos', null=True)
 
     # TODO: switch to ContentType, remove owner and group foreignkeys
     #owner = models.ForeignKey(User, verbose_name=u'Владелец фотографии', null=True, related_name='photos')
