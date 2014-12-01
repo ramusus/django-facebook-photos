@@ -173,10 +173,10 @@ class LikesCountMixin(models.Model):
     class Meta:
         abstract = True
 
-    def parse(self, response):
-        if 'likes' in response:
-            response['likes_count'] = len(response['likes']["data"])
-        super(LikesCountMixin, self).parse(response)
+#    def parse(self, response):
+#        if 'likes' in response:
+#            response['likes_count'] = len(response['likes']["data"])
+#        super(LikesCountMixin, self).parse(response)
 
 
 class CommentsCountMixin(models.Model):
@@ -186,10 +186,10 @@ class CommentsCountMixin(models.Model):
     class Meta:
         abstract = True
 
-    def parse(self, response):
-        if 'comments' in response:
-            response['comments_count'] = len(response['comments']["data"])
-        super(CommentsCountMixin, self).parse(response)
+#    def parse(self, response):
+#        if 'comments' in response:
+#            response['comments_count'] = len(response['comments']["data"])
+#        super(CommentsCountMixin, self).parse(response)
 
     def update_count_and_get_comments(self, instances, *args, **kwargs):
         self.comments_count = instances.count()
@@ -197,8 +197,8 @@ class CommentsCountMixin(models.Model):
         return instances.all()
 
     @atomic
-    #@fetch_all(return_all=update_count_and_get_comments, paging_next_arg_name='after')
-    def fetch_comments(self, limit=1000, filter='stream', summary=True, **kwargs):
+    @fetch_all(return_all=update_count_and_get_comments, paging_next_arg_name='after')
+    def fetch_comments(self, limit=100, filter='stream', summary=True, **kwargs):
         '''
         Retrieve and save all comments
         '''
@@ -211,7 +211,7 @@ class CommentsCountMixin(models.Model):
                 instance = Comment.remote.get_or_create_from_resource(resource, extra_fields)
                 ids += [instance.pk]
 
-        return Comment.objects.filter(pk__in=ids)
+        return Comment.objects.filter(pk__in=ids), response
 
 
 class Album(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIntPKModel):
@@ -264,8 +264,8 @@ class Photo(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIntPK
     picture = models.URLField(max_length=255)  # Link to the 100px wide representation of this photo
     source = models.URLField(max_length=255)
 
-    name = models.CharField(max_length=200, blank=True)
-    place = models.CharField(max_length=200, blank=True)  # Page
+    name = models.CharField(max_length=500, blank=True)
+    place = models.CharField(max_length=255, blank=True)  # Page
 
     width = models.PositiveIntegerField(null=True)
     height = models.PositiveIntegerField(null=True)
@@ -277,8 +277,8 @@ class Photo(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIntPK
 #
 #    like_users = models.ManyToManyField(User, related_name='like_photos')
 
-    created_time = models.DateTimeField(db_index=True)
-    updated_time = models.DateTimeField(db_index=True)
+    created_time = models.DateTimeField(null=True, db_index=True)
+    updated_time = models.DateTimeField(null=True, db_index=True)
 
     objects = models.Manager()
     remote = PhotoRemoteManager()

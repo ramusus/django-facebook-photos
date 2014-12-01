@@ -11,7 +11,7 @@ from .models import Album, Photo, Comment
 PAGE_ID = 40796308305
 ALBUM_ID = 10153647747263306
 ALBUM_ID_2 = 892841980756751
-PHOTO_ID = 915777208463228
+PHOTO_ID = 10150131888543306
 
 
 class FacebookAlbumsTest(TestCase):
@@ -111,7 +111,7 @@ class FacebookPhotosTest(TestCase):
         self.assertEqual(Comment.objects.count(), 0)
 
         comments = photo.fetch_comments(all=True)
-        self.assertGreater(photo.comments_count, 300)
+        self.assertGreater(photo.comments_count, 100)
         self.assertEqual(photo.comments_count, Comment.objects.count())
         self.assertEqual(photo.comments_count, len(comments))
         self.assertEqual(photo.comments_count, photo.photo_comments.count())
