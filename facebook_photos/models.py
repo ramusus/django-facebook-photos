@@ -54,7 +54,13 @@ class AlbumRemoteManager(FacebookGraphManager):
 
 class PhotoRemoteManager(FacebookGraphManager):
 
+    def update_photos_count_and_get_photos(self, instances, album, *args, **kwargs):
+       album.photos_count = album.photos.count()
+       album.save()
+       return instances
+
     @atomic
+    @fetch_all(return_all=update_photos_count_and_get_photos, always_all=False, paging_next_arg_name='after')
     def fetch_by_album(self, album, limit=100, offset=0, until=None, since=None, **kwargs):
 
         kwargs.update({
@@ -81,7 +87,7 @@ class PhotoRemoteManager(FacebookGraphManager):
             instance = self.get_or_create_from_resource(resource, extra_fields)
             ids += [instance.pk]
 
-        return Photo.objects.filter(pk__in=ids)
+        return Photo.objects.filter(pk__in=ids), response
 
 
 class Comment(FacebookGraphStrPKModel):
@@ -244,7 +250,7 @@ class Album(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIntPK
 
 #    @transaction.commit_on_success
     def fetch_photos(self, **kwargs):
-        return Photo.remote.fetch_by_album(album=self, **kwargs)
+        return Photo.remote.fetch_by_album(album=self, all=True, **kwargs)
 
     def parse(self, response):
         response['photos_count'] = response.get("count", 0)
