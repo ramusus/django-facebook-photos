@@ -4,7 +4,8 @@ from django.core.urlresolvers import reverse
 
 from facebook_api.admin import FacebookModelAdmin
 
-from models import Album, Photo
+from . models import Album, Photo, Comment
+
 
 class PhotoInline(admin.TabularInline):
 
@@ -19,12 +20,14 @@ class PhotoInline(admin.TabularInline):
     extra = False
     can_delete = False
 
+
 class AlbumAdmin(FacebookModelAdmin):
 
     list_display = ('name', 'graph_id', 'photos_count', 'likes_count', 'comments_count', 'author', 'place', 'privacy', 'type', 'created_time', 'updated_time')
     list_display_links = ('name',)
-    search_fields = ('name','description')
+    search_fields = ('name', 'description')
     inlines = [PhotoInline]
+
 
 class PhotoAdmin(FacebookModelAdmin):
 
@@ -52,5 +55,10 @@ class PhotoAdmin(FacebookModelAdmin):
     list_filter = ('album',)
 
 
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('graph_id', 'author', 'message')
+
+
 admin.site.register(Album, AlbumAdmin)
 admin.site.register(Photo, PhotoAdmin)
+admin.site.register(Comment, CommentAdmin)
