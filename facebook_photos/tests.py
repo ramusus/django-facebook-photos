@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from django.test import TestCase
 from facebook_pages.factories import PageFactory
-import simplejson as json
+from facebook_users.models import User
 
 from .factories import AlbumFactory, PhotoFactory
 from .models import Album, Photo, Comment
@@ -50,15 +50,15 @@ class FacebookAlbumsTest(TestCase):
         self.assertLess(albums_count1, albums_count)
         self.assertEqual(albums_count1, len(albums))
 
-    def test_likes_and_comments_count(self):
-        a = Album.remote.fetch(ALBUM_ID)
-        self.assertGreater(a.likes_count, 0)
-        self.assertGreater(a.comments_count, 0)
-
     def test_fetch_limit(self):
         page = PageFactory(graph_id=PAGE_ID)
         albums = Album.remote.fetch_by_page(page=page, limit=5)
         self.assertEqual(len(albums), 5)
+
+    def test_fetch_likes(self):
+        a = AlbumFactory(graph_id=ALBUM_ID)
+        a.fetch_likes(all=True)
+        self.assertGreater(a.likes_count, 0)
 
     def test_fetch_comments(self):
         #album = AlbumFactory(graph_id=ALBUM_ID_2)
@@ -74,28 +74,33 @@ class FacebookAlbumsTest(TestCase):
 
         self.assertAlmostEqual(comments[0].album_id, int(album.graph_id))
 
+    def test_fetch_shares(self):
+        a = Album.remote.fetch(ALBUM_ID_2)
+
+        self.assertEqual(a.shares_users.count(), 0)
+        self.assertEqual(User.objects.count(), 0)
+
+        users = a.fetch_shares(all=True)
+        self.assertGreater(users.count(), 0)
+        self.assertEqual(users.count(), User.objects.count())
+        self.assertEqual(users.count(), a.shares_users.count())
+
 
 class FacebookPhotosTest(TestCase):
 
     def test_fetch_album_photos(self):
-        album = Album.remote.fetch(ALBUM_ID_2)
+        album = Album.remote.fetch(ALBUM_ID)
 
         self.assertEqual(Photo.objects.count(), 0)
 
         photos = album.fetch_photos()
 
-        self.assertGreater(len(photos), 0)
-        if album.photos_count <= 100:
-            self.assertEqual(len(photos), album.photos_count)
-        self.assertEqual(Photo.objects.count(), len(photos))
+        self.assertGreater(len(photos), 100)
+        self.assertEqual(len(photos), album.photos_count)
+        self.assertEqual(len(photos), Photo.objects.count())
         self.assertAlmostEqual(photos[0].album_id, int(album.graph_id))
 
-    def test_likes_and_comments_count(self):
-        p = Photo.remote.fetch(PHOTO_ID)
-        self.assertGreater(p.likes_count, 1000)
-        self.assertGreater(p.comments_count, 300)
-
-    def test_fetch_limit(self):
+    def test_photo_fetch_limit(self):
         album = AlbumFactory(graph_id=ALBUM_ID)
         photos1 = Photo.remote.fetch_by_album(album=album, limit=5)
         self.assertEqual(len(photos1), 5)
@@ -105,7 +110,12 @@ class FacebookPhotosTest(TestCase):
 
         self.assertEqual(photos1[4].pk, photos2[0].pk)
 
-    def test_fetch_comments(self):
+    def test_photo_fetch_likes(self):
+        p = Photo.remote.fetch(PHOTO_ID)
+        p.fetch_likes(all=True)
+        self.assertGreater(p.likes_count, 0)
+
+    def test_photo_fetch_comments(self):
         photo = Photo.remote.fetch(PHOTO_ID)
 
         self.assertEqual(Comment.objects.count(), 0)
@@ -117,3 +127,14 @@ class FacebookPhotosTest(TestCase):
         self.assertEqual(photo.comments_count, photo.photo_comments.count())
 
         self.assertAlmostEqual(comments[0].photo_id, int(photo.graph_id))
+
+    def test_photo_fetch_shares(self):
+        p = Photo.remote.fetch(PHOTO_ID)
+
+        self.assertEqual(p.shares_users.count(), 0)
+        self.assertEqual(User.objects.count(), 0)
+
+        users = p.fetch_shares(all=True)
+        self.assertGreater(users.count(), 0)
+        self.assertEqual(users.count(), User.objects.count())
+        self.assertEqual(users.count(), p.shares_users.count())

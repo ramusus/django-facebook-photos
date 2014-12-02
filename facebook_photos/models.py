@@ -11,12 +11,13 @@ from django.utils import timezone
 from django.utils.translation import ugettext as _
 from facebook_api import fields
 from facebook_api.decorators import fetch_all, atomic
-from facebook_api.models import FacebookGraphIntPKModel, FacebookGraphStrPKModel, FacebookGraphManager
+from facebook_api.models import FacebookGraphIntPKModel, FacebookGraphStrPKModel, FacebookGraphManager, MASTER_DATABASE
 from facebook_api.utils import graph
 from facebook_pages.models import Page
-from facebook_posts.models import get_or_create_from_small_resource
+from facebook_posts.models import FacebookLikableModel, get_or_create_from_small_resource
 from facebook_users.models import User
 from m2m_history.fields import ManyToManyHistoryField
+import dateutil.parser
 
 
 log = logging.getLogger('facebook_photos')
@@ -172,13 +173,13 @@ class AuthorMixin(models.Model):
         abstract = True
 
 
-class LikesCountMixin(models.Model):
-
-    likes_count = models.IntegerField(null=True, help_text='The number of comments of this item')
-
-    class Meta:
-        abstract = True
-
+#class LikesCountMixin(models.Model):
+#
+#    likes_count = models.IntegerField(null=True, help_text='The number of comments of this item')
+#
+#    class Meta:
+#        abstract = True
+#
 #    def parse(self, response):
 #        if 'likes' in response:
 #            response['likes_count'] = len(response['likes']["data"])
@@ -220,7 +221,76 @@ class CommentsCountMixin(models.Model):
         return Comment.objects.filter(pk__in=ids), response
 
 
-class Album(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIntPKModel):
+    # fields added by migration
+#class M2MHistoryMixin(models.Model):
+#    time_from = models.DateTimeField(null=True, db_index=True)
+#    time_to = models.DateTimeField(null=True, db_index=True)
+#
+#    class Meta:
+#        abstract = True
+
+
+class SharesMixin(models.Model):
+    #shares_count = models.IntegerField(default=0)
+
+    class Meta:
+        abstract = True
+
+    def update_count_and_get_shares_users(self, instances, *args, **kwargs):
+        self.shares_users = instances
+        # becouse here are not all shares: "Some posts may not appear here because of their privacy settings."
+#        self.shares_count = instances.count()
+#        self.save()
+        return instances
+
+    @atomic
+    @fetch_all(return_all=update_count_and_get_shares_users, paging_next_arg_name='after')
+    def fetch_shares(self, limit=1000, **kwargs):
+        '''
+        Retrieve and save all shares of post
+        '''
+        ids = []
+        graph_id = self.graph_id.split('_').pop()
+
+        response = graph('%s/sharedposts' % graph_id, **kwargs)
+        if response:
+            timestamps = dict([(int(post['from']['id']), dateutil.parser.parse(post['created_time'])) for post in response.data])
+            ids_new = timestamps.keys()
+            # becouse we should use local pk, instead of remote, remove it after pk -> graph_id
+            ids_current = map(int, User.objects.filter(pk__in=self.shares_users.get_query_set(only_pk=True).using(MASTER_DATABASE).exclude(time_from=None)).values_list('graph_id', flat=True))
+            ids_add = set(ids_new).difference(set(ids_current))
+            ids_add_pairs = []
+            ids_remove = set(ids_current).difference(set(ids_new))
+
+            log.debug('response objects count=%s, limit=%s, after=%s' % (len(response.data), limit, kwargs.get('after')))
+            for post in response.data:
+                graph_id = int(post['from']['id'])
+                if sorted(post['from'].keys()) == ['id', 'name']:
+                    try:
+                        user = get_or_create_from_small_resource(post['from'])
+                        ids += [user.pk]
+                        # this id in add list and still not in add_pairs (sometimes in response are duplicates)
+                        if graph_id in ids_add and graph_id not in map(lambda i:i[0], ids_add_pairs):
+                            ids_add_pairs += [(graph_id, user.pk)]  # becouse we should use local pk, instead of remote
+                    except UnknownResourceType:
+                        continue
+
+            m2m_model = self.shares_users.through
+
+            # remove old shares without time_from
+            self.shares_users.get_query_set_through().filter(time_from=None).delete()
+
+            # add new shares
+            get_share_date = lambda id: timestamps[id] if id in timestamps else self.created_time
+            field_name = '%s_id' % self._meta.module_name # 'album_id'
+            m2m_model.objects.bulk_create([m2m_model(**{'user_id': pk, field_name: self.pk, 'time_from': get_share_date(graph_id)}) for graph_id, pk in ids_add_pairs])
+
+        return User.objects.filter(pk__in=ids), response
+
+
+
+class Album(AuthorMixin, FacebookLikableModel, CommentsCountMixin, SharesMixin, FacebookGraphIntPKModel):
+    shares_users = ManyToManyHistoryField(User, related_name='shares_albums')
 
     can_upload = models.BooleanField()
     photos_count = models.PositiveIntegerField(default=0)
@@ -257,9 +327,9 @@ class Album(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIntPK
         super(Album, self).parse(response)
 
 
-class Photo(AuthorMixin, LikesCountMixin, CommentsCountMixin, FacebookGraphIntPKModel):
-
+class Photo(AuthorMixin, FacebookLikableModel, CommentsCountMixin, SharesMixin, FacebookGraphIntPKModel):
     album = models.ForeignKey(Album, related_name='photos', null=True)
+    shares_users = ManyToManyHistoryField(User, related_name='shares_photos')
 
     # TODO: switch to ContentType, remove owner and group foreignkeys
     #owner = models.ForeignKey(User, verbose_name=u'Владелец фотографии', null=True, related_name='photos')
