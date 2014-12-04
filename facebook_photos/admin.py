@@ -4,7 +4,7 @@ from django.core.urlresolvers import reverse
 
 from facebook_api.admin import FacebookModelAdmin
 
-from .models import Album, Photo, Comment
+from .models import Album, Photo
 
 
 class PhotoInline(admin.TabularInline):
@@ -56,10 +56,5 @@ class PhotoAdmin(FacebookModelAdmin):
     list_filter = ('album',)
 
 
-class CommentAdmin(admin.ModelAdmin):
-    list_display = ('graph_id', 'author', 'message')
-
-
 admin.site.register(Album, AlbumAdmin)
 admin.site.register(Photo, PhotoAdmin)
-admin.site.register(Comment, CommentAdmin)
