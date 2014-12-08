@@ -1,3 +1,0 @@
-django-facebook-api>=0.2.1
-django-facebook-users>=0.1.0
-django-facebook-pages>=0.1.9

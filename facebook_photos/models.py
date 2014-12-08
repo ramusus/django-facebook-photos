@@ -9,7 +9,7 @@ from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils.translation import ugettext as _
-from facebook_api.decorators import fetch_all, atomic
+from facebook_api.decorators import fetch_all, atomic, memoize
 from facebook_api.fields import JSONField
 from facebook_api.mixins import OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, ShareableModelMixin, \
     ActionableModelMixin
@@ -107,7 +107,7 @@ class Album(OwnerableModelMixin, AuthorableModelMixin,
 
     can_upload = models.BooleanField()
     photos_count = models.PositiveIntegerField(null=True)
-    cover_photo = models.BigIntegerField(null=True) # Photo
+    cover_photo_id = models.BigIntegerField(null=True)  # Photo
     link = models.URLField(max_length=255)
     location = models.CharField(max_length="200")
     place = JSONField(null=True, blank=True)  # page
@@ -130,11 +130,17 @@ class Album(OwnerableModelMixin, AuthorableModelMixin,
     def __unicode__(self):
         return self.name
 
+    @property
+    @memoize
+    def cover_photo(self):
+        return Photo.objects.get(pk=self.cover_photo_id)
+
     def fetch_photos(self, **kwargs):
         return Photo.remote.fetch_album(album=self, **kwargs)
 
     def parse(self, response):
-        response["photos_count"] = response.get("count", 0)
+        response["photos_count"] = response.get("count", None)
+        response["cover_photo_id"] = response.get("cover_photo", None)
         super(Album, self).parse(response)
 
 
