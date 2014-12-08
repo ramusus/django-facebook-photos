@@ -60,7 +60,7 @@ class AlbumRemoteManager(FacebookGraphManager):
             instance = self.get_or_create_from_resource(resource)
             ids += [instance.pk]
 
-        return Album.objects.filter(pk__in=ids)
+        return Album.objects.filter(pk__in=ids), response
 
 
 class PhotoRemoteManager(FacebookGraphManager):

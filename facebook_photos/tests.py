@@ -22,7 +22,7 @@ class FacebookAlbumTest(TestCase):
 
         self.assertEqual(Album.objects.count(), 0)
 
-        albums = Album.remote.fetch_page(page=page)
+        albums = page.fetch_albums(all=True)
         albums_count = Album.objects.count()
 
         self.assertGreater(len(albums), 0)
@@ -32,16 +32,12 @@ class FacebookAlbumTest(TestCase):
         # testing `since` parameter
         Album.objects.all().delete()
         albums = Album.remote.fetch_page(page=page, since=datetime.now() - timedelta(30))
-        albums_count1 = Album.objects.count()
-        self.assertLess(albums_count1, albums_count)
-        self.assertEqual(albums_count1, len(albums))
+        self.assertLess(albums.count(), albums_count)
 
         # testing `until` parameter
         Album.objects.all().delete()
         albums = Album.remote.fetch_page(page=page, until=datetime.now() - timedelta(30))
-        albums_count1 = Album.objects.count()
-        self.assertLess(albums_count1, albums_count)
-        self.assertEqual(albums_count1, len(albums))
+        self.assertLess(albums.count(), albums_count)
 
     def test_album_fetch_limit(self):
         page = PageFactory(graph_id=PAGE_ID)
@@ -98,11 +94,22 @@ class FacebookPhotoTest(TestCase):
         self.assertEqual(Photo.objects.count(), 0)
 
         photos = album.fetch_photos(all=True)
+        photos_count = Photo.objects.count()
 
-        self.assertGreater(len(photos), 100)
-        self.assertEqual(len(photos), album.photos_count)
-        self.assertEqual(len(photos), Photo.objects.count())
+        self.assertGreater(photos.count(), 100)
+        self.assertEqual(photos.count(), album.photos_count)
+        self.assertEqual(photos.count(), Photo.objects.count())
         self.assertAlmostEqual(photos[0].album_id, int(album.graph_id))
+
+        # testing `since` parameter
+        Photo.objects.all().delete()
+        photos = album.fetch_photos(since=datetime.now() - timedelta(30))
+        self.assertLess(photos.count(), photos_count)
+
+        # testing `until` parameter
+        Photo.objects.all().delete()
+        photos = album.fetch_photos(until=datetime.now() - timedelta(30))
+        self.assertLess(photos.count(), photos_count)
 
     def test_photo_fetch_limit(self):
         album = AlbumFactory(graph_id=ALBUM_ID)
