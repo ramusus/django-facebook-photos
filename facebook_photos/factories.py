@@ -5,6 +5,7 @@ import models
 
 class AlbumFactory(factory.DjangoModelFactory):
 
+    graph_id = factory.Sequence(lambda n: n)
     created_time = factory.LazyAttribute(lambda o: timezone.now())
     updated_time = factory.LazyAttribute(lambda o: timezone.now())
 
@@ -14,6 +15,7 @@ class AlbumFactory(factory.DjangoModelFactory):
 
 class PhotoFactory(factory.DjangoModelFactory):
 
+    graph_id = factory.Sequence(lambda n: n)
     album = factory.SubFactory(AlbumFactory)
     created_time = factory.LazyAttribute(lambda o: timezone.now())
     updated_time = factory.LazyAttribute(lambda o: timezone.now())

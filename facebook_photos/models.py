@@ -10,10 +10,23 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils.translation import ugettext as _
 from facebook_api.decorators import fetch_all, atomic
-from facebook_api.mixins import OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, ShareableModelMixin
+from facebook_api.fields import JSONField
+from facebook_api.mixins import OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, ShareableModelMixin, \
+    ActionableModelMixin
 from facebook_api.models import FacebookGraphIntPKModel, FacebookGraphStrPKModel, FacebookGraphManager
 from facebook_api.utils import graph, get_improperly_configured_field
-from facebook_comments.mixins import CommentableModelMixin
+
+if 'facebook_comments' in settings.INSTALLED_APPS:
+    from facebook_comments.models import Comment
+    from facebook_comments.mixins import CommentableModelMixin
+    wall_comments = generic.GenericRelation(
+        Comment, content_type_field='owner_content_type', object_id_field='owner_id', verbose_name=u'Comments')
+else:
+    wall_comments = get_improperly_configured_field('facebook_comments', True)
+
+    class CommentableModelMixin(models.Model):
+        comments_count = None
+        fetch_comments = get_improperly_configured_field('facebook_comments')
 
 
 log = logging.getLogger('facebook_photos')
@@ -22,6 +35,7 @@ log = logging.getLogger('facebook_photos')
 class AlbumRemoteManager(FacebookGraphManager):
 
     @atomic
+    @fetch_all(always_all=False, paging_next_arg_name='after')
     def fetch_page(self, page, limit=1000, until=None, since=None, **kwargs):
 
         kwargs.update({
@@ -87,18 +101,20 @@ class PhotoRemoteManager(FacebookGraphManager):
         return Photo.objects.filter(pk__in=ids), response
 
 
-class Album(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, CommentableModelMixin, ShareableModelMixin, FacebookGraphIntPKModel):
+class Album(OwnerableModelMixin, AuthorableModelMixin,
+            LikableModelMixin, CommentableModelMixin, ShareableModelMixin,
+            ActionableModelMixin, FacebookGraphIntPKModel):
 
     can_upload = models.BooleanField()
     photos_count = models.PositiveIntegerField(null=True)
-    cover_photo = models.BigIntegerField(null=True)
+    cover_photo = models.BigIntegerField(null=True) # Photo
     link = models.URLField(max_length=255)
-    location = models.CharField(max_length='200')
-    place = models.CharField(max_length='200')  # page
-    privacy = models.CharField(max_length='200')
-    type = models.CharField(max_length='200')
+    location = models.CharField(max_length="200")
+    place = JSONField(null=True, blank=True)  # page
+    privacy = models.CharField(max_length="200")
+    type = models.CharField(max_length="200")
 
-    name = models.CharField(max_length='200')
+    name = models.CharField(max_length="200")
     description = models.TextField()
 
     created_time = models.DateTimeField(null=True, db_index=True)
@@ -108,8 +124,8 @@ class Album(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Commen
     remote = AlbumRemoteManager()
 
     class Meta:
-        verbose_name = 'Facebook Album'
-        verbose_name_plural = 'Facebook Albums'
+        verbose_name = "Facebook Album"
+        verbose_name_plural = "Facebook Albums"
 
     def __unicode__(self):
         return self.name
@@ -118,28 +134,25 @@ class Album(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Commen
         return Photo.remote.fetch_album(album=self, **kwargs)
 
     def parse(self, response):
-        response['photos_count'] = response.get("count", 0)
+        response["photos_count"] = response.get("count", 0)
         super(Album, self).parse(response)
 
 
-class Photo(AuthorableModelMixin, LikableModelMixin, CommentableModelMixin, ShareableModelMixin, FacebookGraphIntPKModel):
+class Photo(AuthorableModelMixin,
+            LikableModelMixin, CommentableModelMixin, ShareableModelMixin,
+            ActionableModelMixin, FacebookGraphIntPKModel):
 
-    album = models.ForeignKey(Album, related_name='photos', null=True)
+    album = models.ForeignKey(Album, related_name="photos", null=True)
 
     link = models.URLField(max_length=255)
     picture = models.URLField(max_length=255)  # Link to the 100px wide representation of this photo
     source = models.URLField(max_length=255)
 
-    name = models.CharField(max_length=500, blank=True)
-    place = models.CharField(max_length=255, blank=True)  # actually it's a Page
+    name = models.TextField()
+    place = JSONField(null=True, blank=True)  # page
 
     width = models.PositiveIntegerField(null=True)
     height = models.PositiveIntegerField(null=True)
-
-#    likes_count = models.PositiveIntegerField(u'Лайков', default=0)
-#    comments_count = models.PositiveIntegerField(u'Комментариев', default=0)
-#    actions_count = models.PositiveIntegerField(u'Комментариев', default=0)
-#    tags_count = models.PositiveIntegerField(u'Тегов', default=0)
 
     created_time = models.DateTimeField(null=True, db_index=True)
     updated_time = models.DateTimeField(null=True, db_index=True)
@@ -150,19 +163,6 @@ class Photo(AuthorableModelMixin, LikableModelMixin, CommentableModelMixin, Shar
     class Meta:
         verbose_name = 'Facebook Photo'
         verbose_name_plural = u'Facebook Photos'
-
-
-'''
-Fields, dependent on other applications
-'''
-
-
-if 'facebook_comments' in settings.INSTALLED_APPS:
-    from facebook_comments.models import Comment
-    wall_comments = generic.GenericRelation(
-        Comment, content_type_field='owner_content_type', object_id_field='owner_id', verbose_name=u'Comments')
-else:
-    wall_comments = get_improperly_configured_field('facebook_comments', True)
 
 
 for Model in [Album, Photo]:
