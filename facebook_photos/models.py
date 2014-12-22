@@ -9,12 +9,13 @@ from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils.translation import ugettext as _
+from facebook_api.api import api_call
 from facebook_api.decorators import fetch_all, atomic, memoize
 from facebook_api.fields import JSONField
 from facebook_api.mixins import OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, ShareableModelMixin, \
     ActionableModelMixin
 from facebook_api.models import FacebookGraphIntPKModel, FacebookGraphStrPKModel, FacebookGraphManager
-from facebook_api.utils import graph, get_improperly_configured_field
+from facebook_api.utils import get_improperly_configured_field
 
 if 'facebook_comments' in settings.INSTALLED_APPS:
     from facebook_comments.models import Comment
@@ -53,7 +54,7 @@ class AlbumRemoteManager(FacebookGraphManager):
                     raise ValueError('Wrong type of argument %s: %s' % (field, type(value)))
 
         ids = []
-        response = graph("%s/albums/" % page.graph_id, **kwargs)
+        response = api_call("%s/albums/" % page.graph_id, **kwargs)
         #log.debug('response objects count - %s' % len(response.data))
 
         for resource in response.data:
@@ -90,7 +91,7 @@ class PhotoRemoteManager(FacebookGraphManager):
                     raise ValueError('Wrong type of argument %s: %s' % (field, type(value)))
 
         ids = []
-        response = graph("%s/photos" % album.pk, **kwargs)
+        response = api_call("%s/photos" % album.pk, **kwargs)
         #log.debug('response objects count - %s' % len(response.data))
 
         extra_fields = {"album_id": album.pk}
