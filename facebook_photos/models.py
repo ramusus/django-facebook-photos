@@ -8,6 +8,7 @@ from django.conf import settings
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db.models import Sum
 from django.utils.translation import ugettext as _
 from facebook_api.api import api_call
 from facebook_api.decorators import fetch_all, atomic, memoize
@@ -143,6 +144,20 @@ class Album(OwnerableModelMixin, AuthorableModelMixin,
         response["photos_count"] = response.get("count", None)
         response["cover_photo_id"] = response.get("cover_photo", None)
         super(Album, self).parse(response)
+
+    def update(self):
+        self.update_likes_count()
+        self.update_comments_count()
+        self.update_shares_count()
+
+    def update_likes_count(self):
+        self.likes_count = self.photos.aggregate(Sum('likes_count'))['likes_count__sum']
+
+    def update_comments_count(self):
+        self.comments_count = self.photos.aggregate(Sum('comments_count'))['comments_count__sum']
+
+    def update_shares_count(self):
+        self.shares_count = self.photos.aggregate(Sum('shares_count'))['shares_count__sum']
 
 
 class Photo(AuthorableModelMixin,

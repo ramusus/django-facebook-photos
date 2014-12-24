@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
+from random import randint
 
 from django.test import TestCase
 from facebook_pages.factories import PageFactory
@@ -7,7 +8,6 @@ from facebook_users.models import User
 
 from .factories import AlbumFactory, PhotoFactory
 from .models import Album, Photo, Comment
-
 PAGE_ID = 40796308305
 ALBUM_ID = 10153647747263306
 ALBUM_ID_2 = 892841980756751
@@ -87,6 +87,24 @@ class FacebookAlbumTest(TestCase):
 
 
 class FacebookPhotoTest(TestCase):
+
+    def test_fetch_album_counts(self):
+        album = AlbumFactory(graph_id=ALBUM_ID)
+
+        for i in range(0, 100):
+            PhotoFactory(album=album, likes_count=randint(0, 100),
+                         comments_count=randint(0, 100),
+                         shares_count=randint(0, 100))
+
+        self.assertEqual(album.likes_count, None)
+        self.assertEqual(album.comments_count, None)
+        self.assertEqual(album.shares_count, None)
+
+        album.update()
+
+        self.assertGreater(album.likes_count, 0)
+        self.assertGreater(album.comments_count, 0)
+        self.assertGreater(album.shares_count, 0)
 
     def test_fetch_album_photos(self):
         album = Album.remote.fetch(ALBUM_ID)
