@@ -18,6 +18,7 @@ from facebook_api.mixins import OwnerableModelMixin, AuthorableModelMixin, Likab
 from facebook_api.models import FacebookGraphIntPKModel, FacebookGraphStrPKModel, FacebookGraphManager
 from facebook_api.utils import get_improperly_configured_field
 
+
 if 'facebook_comments' in settings.INSTALLED_APPS:
     from facebook_comments.models import Comment
     from facebook_comments.mixins import CommentableModelMixin
@@ -111,12 +112,12 @@ class Album(OwnerableModelMixin, AuthorableModelMixin,
     photos_count = models.PositiveIntegerField(null=True)
     cover_photo_id = models.BigIntegerField(null=True)  # Photo
     link = models.URLField(max_length=255)
-    location = models.CharField(max_length="200")
+    location = models.CharField(max_length=200)
     place = JSONField(null=True, blank=True)  # page
-    privacy = models.CharField(max_length="200")
-    type = models.CharField(max_length="200")
+    privacy = models.CharField(max_length=200)
+    type = models.CharField(max_length=200)
 
-    name = models.CharField(max_length="200")
+    name = models.CharField(max_length=200)
     description = models.TextField()
 
     created_time = models.DateTimeField(null=True, db_index=True)
