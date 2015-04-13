@@ -55,15 +55,8 @@ class AlbumRemoteManager(FacebookGraphManager):
                 except TypeError:
                     raise ValueError('Wrong type of argument %s: %s' % (field, type(value)))
 
-        ids = []
-        response = api_call("%s/albums/" % page.graph_id, **kwargs)
-        #log.debug('response objects count - %s' % len(response.data))
-
-        for resource in response.data:
-            instance = self.get_or_create_from_resource(resource)
-            ids += [instance.pk]
-
-        return Album.objects.filter(pk__in=ids), response
+        albums = self.fetch("%s/albums" % page.graph_id, **kwargs)
+        return albums, self.response
 
 
 class PhotoRemoteManager(FacebookGraphManager):
@@ -92,16 +85,9 @@ class PhotoRemoteManager(FacebookGraphManager):
                 except TypeError:
                     raise ValueError('Wrong type of argument %s: %s' % (field, type(value)))
 
-        ids = []
-        response = api_call("%s/photos" % album.pk, **kwargs)
-        #log.debug('response objects count - %s' % len(response.data))
-
-        extra_fields = {"album_id": album.pk}
-        for resource in response.data:
-            instance = self.get_or_create_from_resource(resource, extra_fields)
-            ids += [instance.pk]
-
-        return Photo.objects.filter(pk__in=ids), response
+        kwargs['extra_fields'] = {"album_id": album.pk}
+        photos = self.fetch("%s/photos" % album.pk, **kwargs)
+        return photos, self.response
 
 
 class Album(OwnerableModelMixin, AuthorableModelMixin,

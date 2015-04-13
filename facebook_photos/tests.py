@@ -160,7 +160,7 @@ class FacebookPhotoTest(TestCase):
 
         users = photo.fetch_shares(all=True)
 
-        self.assertGreater(users.count(), 240)
+        self.assertGreaterEqual(users.count(), 233)  # less, then on the site
         self.assertEqual(users.count(), User.objects.count())
         self.assertEqual(users.count(), photo.shares_users.count())
         self.assertEqual(users.count(), photo.shares_count)
