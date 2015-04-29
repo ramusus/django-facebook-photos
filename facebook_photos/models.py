@@ -68,7 +68,7 @@ class PhotoRemoteManager(FacebookGraphManager):
 
     @atomic
     @fetch_all(return_all=update_photos_count_and_get_photos, always_all=False, paging_next_arg_name='after')
-    def fetch_album(self, album, limit=50, offset=0, until=None, since=None, **kwargs):
+    def fetch_album(self, album, limit=100, offset=0, until=None, since=None, **kwargs):
 
         kwargs.update({
             'limit': int(limit),
