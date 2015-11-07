@@ -94,7 +94,7 @@ class Album(OwnerableModelMixin, AuthorableModelMixin,
             LikableModelMixin, CommentableModelMixin, ShareableModelMixin,
             ActionableModelMixin, FacebookGraphIntPKModel):
 
-    can_upload = models.BooleanField()
+    can_upload = models.BooleanField(default=None)
     photos_count = models.PositiveIntegerField(null=True)
     cover_photo_id = models.BigIntegerField(null=True)  # Photo
     link = models.URLField(max_length=255)
