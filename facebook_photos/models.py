@@ -15,7 +15,7 @@ from facebook_api.decorators import fetch_all, atomic, memoize
 from facebook_api.fields import JSONField
 from facebook_api.mixins import OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, ShareableModelMixin, \
     ActionableModelMixin
-from facebook_api.models import FacebookGraphIntPKModel, FacebookGraphStrPKModel, FacebookGraphManager
+from facebook_api.models import FacebookGraphIntPKModel, FacebookGraphStrPKModel, FacebookGraphTimelineManager
 from facebook_api.utils import get_improperly_configured_field
 
 
@@ -35,31 +35,19 @@ else:
 log = logging.getLogger('facebook_photos')
 
 
-class AlbumRemoteManager(FacebookGraphManager):
+class AlbumRemoteManager(FacebookGraphTimelineManager):
 
     @atomic
-    @fetch_all(always_all=False, paging_next_arg_name='after')
-    def fetch_page(self, page, limit=1000, until=None, since=None, **kwargs):
-
+    @fetch_all(paging_next_arg_name='after')
+    def fetch_page(self, page, limit=1000, **kwargs):
         kwargs.update({
             'limit': int(limit),
         })
-
-        for field in ['until', 'since']:
-            value = locals()[field]
-            if isinstance(value, datetime):
-                kwargs[field] = int(time.mktime(value.timetuple()))
-            elif value is not None:
-                try:
-                    kwargs[field] = int(value)
-                except TypeError:
-                    raise ValueError('Wrong type of argument %s: %s' % (field, type(value)))
-
         albums = self.fetch("%s/albums" % page.graph_id, **kwargs)
         return albums, self.response
 
 
-class PhotoRemoteManager(FacebookGraphManager):
+class PhotoRemoteManager(FacebookGraphTimelineManager):
 
     def update_photos_count_and_get_photos(self, instances, album, *args, **kwargs):
         album.photos_count = album.photos.count()
@@ -67,25 +55,13 @@ class PhotoRemoteManager(FacebookGraphManager):
         return instances
 
     @atomic
-    @fetch_all(return_all=update_photos_count_and_get_photos, always_all=False, paging_next_arg_name='after')
-    def fetch_album(self, album, limit=100, offset=0, until=None, since=None, **kwargs):
-
+    @fetch_all(return_all=update_photos_count_and_get_photos, paging_next_arg_name='after')
+    def fetch_album(self, album, limit=100, offset=0, **kwargs):
         kwargs.update({
             'limit': int(limit),
             'offset': int(offset),
+            'extra_fields': {"album_id": album.pk}
         })
-
-        for field in ['until', 'since']:
-            value = locals()[field]
-            if isinstance(value, datetime):
-                kwargs[field] = int(time.mktime(value.timetuple()))
-            elif value is not None:
-                try:
-                    kwargs[field] = int(value)
-                except TypeError:
-                    raise ValueError('Wrong type of argument %s: %s' % (field, type(value)))
-
-        kwargs['extra_fields'] = {"album_id": album.pk}
         photos = self.fetch("%s/photos" % album.pk, **kwargs)
         return photos, self.response
 
@@ -94,7 +70,7 @@ class Album(OwnerableModelMixin, AuthorableModelMixin,
             LikableModelMixin, CommentableModelMixin, ShareableModelMixin,
             ActionableModelMixin, FacebookGraphIntPKModel):
 
-    can_upload = models.BooleanField(default=None)
+    can_upload = models.NullBooleanField()
     photos_count = models.PositiveIntegerField(null=True)
     cover_photo_id = models.BigIntegerField(null=True)  # Photo
     link = models.URLField(max_length=255)

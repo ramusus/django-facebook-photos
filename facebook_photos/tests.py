@@ -3,11 +3,15 @@ from datetime import datetime, timedelta
 from random import randint
 
 from django.test import TestCase
+from django.db.models import Min
+from django.utils import timezone
 from facebook_pages.factories import PageFactory
 from facebook_users.models import User
 
 from .factories import AlbumFactory, PhotoFactory
 from .models import Album, Photo, Comment
+
+
 PAGE_ID = 40796308305
 ALBUM_ID = 10153647747263306
 ALBUM_ID_2 = 892841980756751
@@ -121,13 +125,29 @@ class FacebookPhotoTest(TestCase):
 
         # testing `since` parameter
         Photo.objects.all().delete()
-        photos = album.fetch_photos(since=datetime.now() - timedelta(30))
+        since = datetime.now() - timedelta(30)
+        photos = album.fetch_photos(since=since)
         self.assertLess(photos.count(), photos_count)
 
         # testing `until` parameter
         Photo.objects.all().delete()
-        photos = album.fetch_photos(until=datetime.now() - timedelta(30))
+        until = datetime.now() - timedelta(30)
+        photos = album.fetch_photos(until=until, since=since)
         self.assertLess(photos.count(), photos_count)
+
+    def test_fetch_album_photos_reduce_the_amount_error(self):
+        since = datetime(2015, 1, 3).replace(tzinfo=timezone.utc)
+
+        album = AlbumFactory(graph_id=338121134579)
+        photos = album.fetch_photos(since=since)
+        self.assertEqual(photos.count(), 33)
+
+        photos = album.fetch_photos(since=since, all=True)
+        self.assertGreater(photos.count(), 220)
+        self.assertGreater(photos.aggregate(Min('created_time'))['created_time__min'], since)
+
+        photos = album.fetch_photos(since=since, limit=200)
+        self.assertEqual(photos.count(), 200)  # TODO: 33!=200 Implement fetching requested amount of posts
 
     def test_photo_fetch_limit(self):
         album = AlbumFactory(graph_id=ALBUM_ID)
