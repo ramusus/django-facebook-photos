@@ -1,21 +1,15 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime
 import logging
-import re
-import time
 
 from django.conf import settings
 from django.contrib.contenttypes import generic
-from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Sum
-from django.utils.translation import ugettext as _
-from facebook_api.api import api_call
 from facebook_api.decorators import fetch_all, atomic, memoize
 from facebook_api.fields import JSONField
-from facebook_api.mixins import OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, ShareableModelMixin, \
-    ActionableModelMixin
-from facebook_api.models import FacebookGraphIntPKModel, FacebookGraphStrPKModel, FacebookGraphTimelineManager
+from facebook_api.mixins import (OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, ShareableModelMixin,
+                                 ActionableModelMixin)
+from facebook_api.models import FacebookGraphIntPKModel, FacebookGraphTimelineManager
 from facebook_api.utils import get_improperly_configured_field
 
 
@@ -66,8 +60,7 @@ class PhotoRemoteManager(FacebookGraphTimelineManager):
         return photos, self.response
 
 
-class Album(OwnerableModelMixin, AuthorableModelMixin,
-            LikableModelMixin, CommentableModelMixin, ShareableModelMixin,
+class Album(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, CommentableModelMixin, ShareableModelMixin,
             ActionableModelMixin, FacebookGraphIntPKModel):
 
     can_upload = models.NullBooleanField()
@@ -123,8 +116,7 @@ class Album(OwnerableModelMixin, AuthorableModelMixin,
         self.shares_count = self.photos.aggregate(Sum('shares_count'))['shares_count__sum']
 
 
-class Photo(AuthorableModelMixin,
-            LikableModelMixin, CommentableModelMixin, ShareableModelMixin,
+class Photo(AuthorableModelMixin, LikableModelMixin, CommentableModelMixin, ShareableModelMixin,
             ActionableModelMixin, FacebookGraphIntPKModel):
 
     album = models.ForeignKey(Album, related_name="photos", null=True)
