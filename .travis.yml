@@ -18,6 +18,7 @@ install:
   - pip install factory_boy
   - pip install coveralls
   - pip install mock
+  - pip install -e git+git@github.com:ramusus/django-facebook-comments.git#egg=django_facebook_comments
   - pip install . --process-dependency-links
 script:
   - django-admin.py --version

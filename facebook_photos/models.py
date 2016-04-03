@@ -4,7 +4,6 @@ import logging
 from django.conf import settings
 from django.contrib.contenttypes import generic
 from django.db import models
-from django.db.models import Sum
 from facebook_api.decorators import fetch_all, atomic, memoize
 from facebook_api.fields import JSONField
 from facebook_api.mixins import (OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, ShareableModelMixin,
