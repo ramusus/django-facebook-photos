@@ -16,10 +16,10 @@ from facebook_api.utils import get_improperly_configured_field
 if 'facebook_comments' in settings.INSTALLED_APPS:
     from facebook_comments.models import Comment
     from facebook_comments.mixins import CommentableModelMixin
-    wall_comments = generic.GenericRelation(
+    comments = generic.GenericRelation(
         Comment, content_type_field='owner_content_type', object_id_field='owner_id', verbose_name=u'Comments')
 else:
-    wall_comments = get_improperly_configured_field('facebook_comments', True)
+    comments = get_improperly_configured_field('facebook_comments', True)
 
     class CommentableModelMixin(models.Model):
         comments_count = None
@@ -99,6 +99,7 @@ class Album(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Commen
     def parse(self, response):
         response["photos_count"] = response.get("count", None)
         response["cover_photo_id"] = response.get("cover_photo", None)
+        del response['comments']
         super(Album, self).parse(response)
 
 
@@ -129,4 +130,4 @@ class Photo(AuthorableModelMixin, LikableModelMixin, CommentableModelMixin, Shar
 
 
 for Model in [Album, Photo]:
-    Model.add_to_class('wall_comments', wall_comments)
+    Model.add_to_class('comments', comments)
