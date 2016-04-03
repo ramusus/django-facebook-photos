@@ -99,7 +99,7 @@ class Album(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Commen
     def parse(self, response):
         response["photos_count"] = response.get("count", None)
         response["cover_photo_id"] = response.get("cover_photo", None)
-        del response['comments']
+        response.pop('comments', None)
         super(Album, self).parse(response)
 
 
