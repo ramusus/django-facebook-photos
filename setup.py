@@ -19,7 +19,6 @@ setup(
         'django-facebook-pages>=0.3.0',
         'django-m2m-history>=0.1.2',
     ],
-    dependency_links=['https://github.com/pythonforfacebook/facebook-sdk/tarball/master#egg=facebook-sdk-1.0.0a0'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Web Environment',

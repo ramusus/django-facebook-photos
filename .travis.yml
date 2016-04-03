@@ -18,7 +18,7 @@ install:
   - pip install factory_boy
   - pip install coveralls
   - pip install mock
-  - pip install .
+  - pip install . --process-dependency-links
 script:
   - django-admin.py --version
   - coverage run --source=facebook_photos quicktest.py facebook_photos
