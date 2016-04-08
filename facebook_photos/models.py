@@ -127,6 +127,10 @@ class Photo(AuthorableModelMixin, LikableModelMixin, CommentableModelMixin, Shar
         verbose_name = 'Facebook Photo'
         verbose_name_plural = u'Facebook Photos'
 
+    def parse(self, response):
+        response.pop('comments', None)
+        super(Photo, self).parse(response)
+
 
 for Model in [Album, Photo]:
     Model.add_to_class('comments', comments)
