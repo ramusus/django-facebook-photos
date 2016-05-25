@@ -64,7 +64,7 @@ class Album(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Commen
 
     can_upload = models.NullBooleanField()
     photos_count = models.PositiveIntegerField(null=True)
-    cover_photo_id = models.BigIntegerField(null=True)  # Photo
+    cover_photo = models.ForeignKey('Photo', related_name='cover_for_albums', null=True)
     link = models.URLField(max_length=255)
     location = models.CharField(max_length=200)
     place = JSONField(null=True, blank=True)  # page
@@ -86,11 +86,6 @@ class Album(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Commen
 
     def __unicode__(self):
         return self.name
-
-    @property
-    @memoize
-    def cover_photo(self):
-        return Photo.objects.get(pk=self.cover_photo_id)
 
     def fetch_photos(self, **kwargs):
         return Photo.remote.fetch_album(album=self, **kwargs)
