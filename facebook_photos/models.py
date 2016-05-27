@@ -92,8 +92,11 @@ class Album(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Commen
 
     def parse(self, response):
         response["photos_count"] = response.get("count", None)
-        response["cover_photo_id"] = response.get("cover_photo", None)
         response.pop('comments', None)
+        try:
+            self.cover_photo = Photo.objects.get(graph_id=response.get("cover_photo", None))
+        except Photo.DoesNotExist:
+            pass
         super(Album, self).parse(response)
 
 
