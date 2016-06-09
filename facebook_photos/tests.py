@@ -15,7 +15,7 @@ from .models import Album, Photo, Comment
 PAGE_ID = 40796308305
 ALBUM_ID = 10153647747263306
 ALBUM_ID_2 = 892841980756751
-PHOTO_ID = 10150131888543306
+PHOTO_ID = 10152896831608306
 
 
 class FacebookAlbumTest(FacebookApiTestCase):
@@ -76,14 +76,14 @@ class FacebookAlbumTest(FacebookApiTestCase):
     def test_album_fetch_comments(self):
         album = AlbumFactory(graph_id=ALBUM_ID_2)
 
-        self.assertEqual(album.wall_comments.count(), 0)
+        self.assertEqual(album.comments.count(), 0)
         self.assertEqual(Comment.objects.count(), 0)
 
         comments = album.fetch_comments(all=True)
 
-        self.assertGreaterEqual(comments.count(), 15)
+        self.assertGreaterEqual(comments.count(), 14)
         self.assertEqual(comments.count(), Comment.objects.count())
-        self.assertEqual(comments.count(), album.wall_comments.count())
+        self.assertEqual(comments.count(), album.comments.count())
         self.assertEqual(comments.count(), album.comments_count)
 
         self.assertIsInstance(comments[0].author, User)
@@ -92,24 +92,6 @@ class FacebookAlbumTest(FacebookApiTestCase):
 
 
 class FacebookPhotoTest(FacebookApiTestCase):
-
-    def test_fetch_album_counts(self):
-        album = AlbumFactory(graph_id=ALBUM_ID)
-
-        for i in range(0, 100):
-            PhotoFactory(album=album, likes_count=randint(0, 100),
-                         comments_count=randint(0, 100),
-                         shares_count=randint(0, 100))
-
-        self.assertEqual(album.likes_count, None)
-        self.assertEqual(album.comments_count, None)
-        self.assertEqual(album.shares_count, None)
-
-        album.update()
-
-        self.assertGreater(album.likes_count, 0)
-        self.assertGreater(album.comments_count, 0)
-        self.assertGreater(album.shares_count, 0)
 
     def test_fetch_album_photos(self):
         album = Album.remote.fetch(ALBUM_ID)
@@ -167,7 +149,7 @@ class FacebookPhotoTest(FacebookApiTestCase):
 
         users = photo.fetch_likes(all=True)
 
-        self.assertGreater(photo.likes_count, 1500)
+        self.assertGreaterEqual(photo.likes_count, 8000)
         self.assertEqual(users.count(), User.objects.count())
         self.assertEqual(users.count(), photo.likes_users.count())
         self.assertEqual(users.count(), photo.likes_count)
@@ -180,7 +162,7 @@ class FacebookPhotoTest(FacebookApiTestCase):
 
         users = photo.fetch_shares(all=True)
 
-        # self.assertGreaterEqual(users.count(), 233)  # TODO: returns 0
+        # self.assertGreaterEqual(users.count(), 500)  # TODO: returns 0
         # self.assertEqual(users.count(), User.objects.count())
         # self.assertEqual(users.count(), photo.shares_users.count())
         # self.assertEqual(users.count(), photo.shares_count)
@@ -189,13 +171,13 @@ class FacebookPhotoTest(FacebookApiTestCase):
         photo = Photo.remote.fetch(PHOTO_ID)
 
         self.assertEqual(Comment.objects.count(), 0)
-        self.assertEqual(photo.wall_comments.count(), 0)
+        self.assertEqual(photo.comments.count(), 0)
 
         comments = photo.fetch_comments(all=True)
 
-        self.assertGreater(comments.count(), 100)
+        self.assertGreaterEqual(comments.count(), 331)
         self.assertEqual(comments.count(), Comment.objects.count())
-        self.assertEqual(comments.count(), photo.wall_comments.count())
+        self.assertEqual(comments.count(), photo.comments.count())
         self.assertEqual(comments.count(), photo.comments_count)
 
         self.assertIsInstance(comments[0].author, User)
