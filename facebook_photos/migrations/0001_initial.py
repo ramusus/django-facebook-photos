@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
                 ('likes_count', models.PositiveIntegerField(help_text=b'The number of likes of this item', null=True)),
                 ('shares_count', models.PositiveIntegerField(help_text=b'The number of shares of this item', null=True)),
                 ('comments_count', models.PositiveIntegerField(help_text=b'The number of comments of this item', null=True)),
-                ('can_upload', models.NullBooleanField()),
+                ('can_upload', models.BooleanField()),
                 ('photos_count', models.PositiveIntegerField(null=True)),
                 ('cover_photo_id', models.BigIntegerField(null=True)),
                 ('link', models.URLField(max_length=255)),
